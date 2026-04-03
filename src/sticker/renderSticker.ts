@@ -260,7 +260,7 @@ export async function ensureStickerFontLoaded(): Promise<void> {
   if (!fontLoadPromise) {
     const font = new FontFace(
       FONT_FAMILY,
-      'url(/DouyinSansBold.woff2) format("woff2")',
+      `url(${import.meta.env.BASE_URL}DouyinSansBold.woff2) format("woff2")`,
       {
         style: FONT_STYLE,
         weight: FONT_WEIGHT,
