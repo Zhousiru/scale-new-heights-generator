@@ -10,10 +10,8 @@ import {
   type StickerEnvelopeControls,
 } from './sticker/defaults'
 import {
-  buildDownloadHash,
   controlsToHash,
   hashToControls,
-  isDownloadMode,
 } from './sticker/hashParams'
 import {
   renderStickerPreview,
@@ -25,35 +23,6 @@ import {
 const IN_IFRAME = (() => {
   try { return window.self !== window.top } catch { return true }
 })()
-
-function DownloadPage({ controls }: { controls: StickerControls }) {
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    void exportStickerBlob(controls)
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = 'sticker.png'
-        a.click()
-        URL.revokeObjectURL(url)
-        window.close()
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Export failed.')
-      })
-  }, [controls])
-
-  return (
-    <main className="download-page">
-      {error
-        ? <p className="error">{error}</p>
-        : <><div className="spinner" /><span className="download-hint">生成中…</span></>
-      }
-    </main>
-  )
-}
 
 function App() {
   const [controls, setControls] = useState(() => hashToControls(location.hash))
@@ -221,14 +190,7 @@ function App() {
 
       {hasText && (
         IN_IFRAME ? (
-          <a
-            className="export-btn"
-            href={buildDownloadHash(controls)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            导出 PNG
-          </a>
+          <span className="iframe-hint">iframe 环境受限，请右键或长按预览图保存</span>
         ) : (
           <button
             className="export-btn"
@@ -251,12 +213,4 @@ function App() {
   )
 }
 
-function Root() {
-  const [download] = useState(() => isDownloadMode(location.hash))
-  const [controls] = useState(() => hashToControls(location.hash))
-
-  if (download) return <DownloadPage controls={controls} />
-  return <App />
-}
-
-export default Root
+export default App

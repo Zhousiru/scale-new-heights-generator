@@ -45,7 +45,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
     edgeWidth: 4,
     gradientStart: '#0582ff',
     gradientEnd: '#dfe7f1',
-    gradientAngle: 90,
+    gradientAngle: 180,
     edgeOpacity: 0.2,
   },
 }

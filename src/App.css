@@ -182,20 +182,10 @@
   cursor: not-allowed;
 }
 
-/* ── Download Page ── */
-
-.download-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100dvh;
-  gap: 12px;
-}
-
-.download-hint {
-  color: #999;
-  font-size: 13px;
+.iframe-hint {
+  align-self: center;
+  color: #bbb;
+  font-size: 12px;
 }
 
 /* ── Footer ── */

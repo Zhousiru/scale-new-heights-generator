@@ -520,7 +520,7 @@ function createGradient(
   startColor: string,
   endColor: string,
 ): CanvasGradient {
-  const angle = (angleDeg * Math.PI) / 180
+  const angle = ((angleDeg - 90) * Math.PI) / 180
   const dx = Math.cos(angle)
   const dy = Math.sin(angle)
   const halfLength = (Math.abs(dx) * width + Math.abs(dy) * height) / 2

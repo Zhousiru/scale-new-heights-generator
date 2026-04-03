@@ -66,15 +66,6 @@ export function hashToControls(hash: string): StickerControls {
   })
 }
 
-export function isDownloadMode(hash: string): boolean {
-  const p = new URLSearchParams(hash.replace(/^#/, ''))
-  return p.get('dl') === '1'
-}
-
-export function buildDownloadHash(controls: StickerControls): string {
-  const hash = controlsToHash(controls)
-  return hash ? `#${hash}&dl=1` : '#dl=1'
-}
 
 function num(v: string | null): number | undefined {
   if (v === null) return undefined
