@@ -1,6 +1,4 @@
 import {
-  startTransition,
-  useDeferredValue,
   useEffect,
   useRef,
   useState,
@@ -8,62 +6,136 @@ import {
 import './App.css'
 import { AngleKnob } from './AngleKnob'
 import {
-  DEFAULT_STICKER_CONTROLS,
   type StickerControls,
   type StickerEnvelopeControls,
 } from './sticker/defaults'
-import { renderSticker, type RenderResult } from './sticker/renderSticker'
+import {
+  buildDownloadHash,
+  controlsToHash,
+  hashToControls,
+  isDownloadMode,
+} from './sticker/hashParams'
+import {
+  renderStickerPreview,
+  exportStickerBlob,
+  cancelPendingPreviews,
+  type PreviewResult,
+} from './sticker/stickerWorker'
+
+const IN_IFRAME = (() => {
+  try { return window.self !== window.top } catch { return true }
+})()
+
+function DownloadPage({ controls }: { controls: StickerControls }) {
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void exportStickerBlob(controls)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'sticker.png'
+        a.click()
+        URL.revokeObjectURL(url)
+        window.close()
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Export failed.')
+      })
+  }, [controls])
+
+  return (
+    <main className="download-page">
+      {error
+        ? <p className="error">{error}</p>
+        : <><div className="spinner" /><span className="download-hint">生成中…</span></>
+      }
+    </main>
+  )
+}
 
 function App() {
-  const [controls, setControls] = useState<StickerControls>(DEFAULT_STICKER_CONTROLS)
-  const [preview, setPreview] = useState<RenderResult | null>(null)
+  const [controls, setControls] = useState(() => hashToControls(location.hash))
+  const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
-  const previewCanvasRef = useRef<HTMLDivElement | null>(null)
-  const deferredControls = useDeferredValue(controls)
+  const [isRendering, setIsRendering] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  const [renderControls, setRenderControls] = useState(controls)
+  useEffect(() => {
+    const timer = setTimeout(() => setRenderControls(controls), 250)
+    return () => clearTimeout(timer)
+  }, [controls])
+
+  // Sync controls → hash
+  useEffect(() => {
+    const hash = controlsToHash(renderControls)
+    history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search)
+  }, [renderControls])
 
   const hasText = controls.text.trim().length > 0
 
   useEffect(() => {
-    if (deferredControls.text.trim().length === 0) {
-      startTransition(() => {
-        setPreview(null)
-        setPreviewError(null)
+    if (renderControls.text.trim().length === 0) {
+      setPreview((prev) => {
+        prev?.bitmap.close()
+        return null
       })
+      setPreviewError(null)
+      setIsRendering(false)
       return
     }
 
     let active = true
     setPreviewError(null)
+    setIsRendering(true)
 
-    void renderSticker(deferredControls)
+    void renderStickerPreview(renderControls)
       .then((result) => {
-        if (active) startTransition(() => setPreview(result))
+        if (active) {
+          setPreview((prev) => {
+            prev?.bitmap.close()
+            return result
+          })
+          setIsRendering(false)
+        } else {
+          result.bitmap.close()
+        }
       })
       .catch((error: unknown) => {
         if (!active) return
         const message = error instanceof Error ? error.message : 'Rendering failed.'
-        startTransition(() => {
-          setPreview(null)
-          setPreviewError(message)
+        setPreview((prev) => {
+          prev?.bitmap.close()
+          return null
         })
+        setPreviewError(message)
+        setIsRendering(false)
       })
 
-    return () => { active = false }
-  }, [deferredControls])
+    return () => {
+      active = false
+      cancelPendingPreviews()
+    }
+  }, [renderControls])
 
   useEffect(() => {
-    const container = previewCanvasRef.current
-    if (!container) return
-    if (!preview) {
-      container.replaceChildren()
-      return
-    }
-    const canvas = preview.canvas
+    const canvas = canvasRef.current
+    if (!canvas || !preview) return
+
     const dpr = window.devicePixelRatio || 1
-    canvas.style.width = `${canvas.width / dpr}px`
-    canvas.style.height = `${canvas.height / dpr}px`
-    container.replaceChildren(canvas)
+    canvas.width = preview.width
+    canvas.height = preview.height
+    canvas.style.width = `${preview.width / dpr}px`
+    canvas.style.height = `${preview.height / dpr}px`
+
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(preview.bitmap, 0, 0)
+    }
   }, [preview])
 
   const updateControl = <K extends keyof StickerControls>(key: K, value: StickerControls[K]) => {
@@ -78,8 +150,7 @@ function App() {
     if (!hasText) return
     setIsExporting(true)
     try {
-      const result = await renderSticker(controls)
-      const blob = await result.toBlob()
+      const blob = await exportStickerBlob(controls)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -134,7 +205,14 @@ function App() {
 
       <div className="canvas-area">
         {hasText ? (
-          <div ref={previewCanvasRef} />
+          <div className="preview-wrap">
+            <canvas
+              ref={canvasRef}
+              className={isRendering && preview ? 'stale' : undefined}
+              style={{ display: preview ? 'block' : 'none' }}
+            />
+            {isRendering && <div className="spinner" />}
+          </div>
         ) : (
           <span className="placeholder">输入文字后预览</span>
         )}
@@ -142,14 +220,25 @@ function App() {
       </div>
 
       {hasText && (
-        <button
-          className="export-btn"
-          type="button"
-          disabled={isExporting}
-          onClick={() => void handleExport()}
-        >
-          {isExporting ? '导出中…' : '导出 PNG'}
-        </button>
+        IN_IFRAME ? (
+          <a
+            className="export-btn"
+            href={buildDownloadHash(controls)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            导出 PNG
+          </a>
+        ) : (
+          <button
+            className="export-btn"
+            type="button"
+            disabled={isExporting}
+            onClick={() => void handleExport()}
+          >
+            {isExporting ? '导出中…' : '导出 PNG'}
+          </button>
+        )
       )}
 
       <footer className="footer">
@@ -162,4 +251,12 @@ function App() {
   )
 }
 
-export default App
+function Root() {
+  const [download] = useState(() => isDownloadMode(location.hash))
+  const [controls] = useState(() => hashToControls(location.hash))
+
+  if (download) return <DownloadPage controls={controls} />
+  return <App />
+}
+
+export default Root

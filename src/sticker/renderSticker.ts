@@ -57,14 +57,15 @@ export interface OpaqueBounds {
 }
 
 export interface RenderResult {
-  canvas: HTMLCanvasElement
+  canvas: OffscreenCanvas
   width: number
   height: number
   toBlob: () => Promise<Blob>
+  toBitmap: () => ImageBitmap
 }
 
 let fontLoadPromise: Promise<void> | null = null
-let measurementCanvas: HTMLCanvasElement | null = null
+let measurementCanvas: OffscreenCanvas | null = null
 
 export function splitGraphemes(text: string): string[] {
   if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
@@ -251,33 +252,30 @@ export function findOpaqueBounds(
 }
 
 export async function ensureStickerFontLoaded(): Promise<void> {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return
-  }
-
-  const fontSpec = `${FONT_STYLE} ${FONT_WEIGHT} 16px "${FONT_FAMILY}"`
+  if (typeof FontFace === 'undefined') return
 
   if (!fontLoadPromise) {
+    const fonts: FontFaceSet | undefined =
+      typeof document !== 'undefined'
+        ? document.fonts
+        : (globalThis as unknown as { fonts?: FontFaceSet }).fonts
+
+    if (!fonts) return
+
+    const fontSpec = `${FONT_STYLE} ${FONT_WEIGHT} 16px "${FONT_FAMILY}"`
     const font = new FontFace(
       FONT_FAMILY,
       `url(${import.meta.env.BASE_URL}DouyinSansBold.woff2) format("woff2")`,
-      {
-        style: FONT_STYLE,
-        weight: FONT_WEIGHT,
-      },
+      { style: FONT_STYLE, weight: FONT_WEIGHT },
     )
-    fontLoadPromise = font
-      .load()
-      .then((loadedFace) => {
-        document.fonts.add(loadedFace)
-        return document.fonts
-          .load(fontSpec, FONT_SAMPLE_TEXT)
-          .then(() => undefined)
-      })
-      .catch((error: unknown) => {
-        fontLoadPromise = null
-        throw error
-      })
+
+    fontLoadPromise = font.load().then((loaded) => {
+      fonts.add(loaded)
+      return fonts.load(fontSpec, FONT_SAMPLE_TEXT).then(() => undefined)
+    }).catch((error: unknown) => {
+      fontLoadPromise = null
+      throw error
+    })
   }
 
   await fontLoadPromise
@@ -397,6 +395,7 @@ export async function renderSticker(
     width: exportCanvas.width,
     height: exportCanvas.height,
     toBlob: () => canvasToPngBlob(exportCanvas),
+    toBitmap: () => exportCanvas.transferToImageBitmap(),
   }
 }
 
@@ -416,7 +415,7 @@ function calculateWorkingPadding(controls: StickerControls): number {
 }
 
 function resetAndPrepareTextContext(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   fontSize: number,
 ): void {
   context.setTransform(1, 0, 0, 1, 0, 0)
@@ -425,7 +424,7 @@ function resetAndPrepareTextContext(
 }
 
 function configureTextContext(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   fontSize: number,
 ): void {
   context.font =
@@ -436,7 +435,7 @@ function configureTextContext(
 }
 
 function drawFilledGlyphs(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
   originX: number,
   originY: number,
@@ -447,7 +446,7 @@ function drawFilledGlyphs(
 }
 
 function drawGlyphMask(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
   originX: number,
   originY: number,
@@ -462,11 +461,11 @@ function drawGlyphMask(
 }
 
 function drawPlacedGlyphs(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
   originX: number,
   originY: number,
-  painter: (context: CanvasRenderingContext2D, grapheme: string) => void,
+  painter: (context: OffscreenCanvasRenderingContext2D, grapheme: string) => void,
 ): void {
   for (const placement of layout.placements) {
     context.save()
@@ -478,7 +477,7 @@ function drawPlacedGlyphs(
 }
 
 function drawTextShadow(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
   originX: number,
   originY: number,
@@ -514,7 +513,7 @@ function extractAlphaChannel(rgba: Uint8ClampedArray): Uint8ClampedArray {
 }
 
 function createGradient(
-  context: CanvasRenderingContext2D,
+  context: OffscreenCanvasRenderingContext2D,
   width: number,
   height: number,
   angleDeg: number,
@@ -560,7 +559,7 @@ function darkenHexColor(color: string, amount: number): string {
   return `rgb(${next[0]}, ${next[1]}, ${next[2]})`
 }
 
-function maskToCanvas(mask: BinaryMask, softenRadius = 0): HTMLCanvasElement {
+function maskToCanvas(mask: BinaryMask, softenRadius = 0): OffscreenCanvas {
   const baseCanvas = createCanvas(mask.width, mask.height)
   const baseContext = getContext(baseCanvas)
   const imageData = baseContext.createImageData(mask.width, mask.height)
@@ -579,9 +578,9 @@ function maskToCanvas(mask: BinaryMask, softenRadius = 0): HTMLCanvasElement {
 }
 
 function paintMask(
-  targetContext: CanvasRenderingContext2D,
-  maskCanvas: HTMLCanvasElement,
-  painter: (context: CanvasRenderingContext2D) => void,
+  targetContext: OffscreenCanvasRenderingContext2D,
+  maskCanvas: OffscreenCanvas,
+  painter: (context: OffscreenCanvasRenderingContext2D) => void,
   opacity = 1,
   compositeOperation: GlobalCompositeOperation = 'source-over',
 ): void {
@@ -600,9 +599,9 @@ function paintMask(
 }
 
 function cropCanvas(
-  sourceCanvas: HTMLCanvasElement,
+  sourceCanvas: OffscreenCanvas,
   padding: number,
-): HTMLCanvasElement {
+): OffscreenCanvas {
   const sourceContext = getContext(sourceCanvas)
   const imageData = sourceContext.getImageData(
     0,
@@ -644,10 +643,10 @@ function cropCanvas(
 }
 
 function resizeCanvasToHeight(
-  sourceCanvas: HTMLCanvasElement,
+  sourceCanvas: OffscreenCanvas,
   targetHeight: number,
   maxEdge: number,
-): HTMLCanvasElement {
+): OffscreenCanvas {
   const heightScale = targetHeight / sourceCanvas.height
   const targetWidth = Math.max(1, Math.round(sourceCanvas.width * heightScale))
   const longestEdge = Math.max(targetWidth, targetHeight)
@@ -662,17 +661,8 @@ function resizeCanvasToHeight(
   return canvas
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('PNG export failed.'))
-        return
-      }
-
-      resolve(blob)
-    }, 'image/png')
-  })
+function canvasToPngBlob(canvas: OffscreenCanvas): Promise<Blob> {
+  return canvas.convertToBlob({ type: 'image/png' })
 }
 
 function measureGlyphWithCanvas(
@@ -835,18 +825,14 @@ function clampUnitInterval(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
-function createCanvas(width: number, height: number): HTMLCanvasElement {
-  if (typeof document === 'undefined') {
-    throw new Error('Canvas rendering requires a browser environment.')
-  }
-
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.ceil(width))
-  canvas.height = Math.max(1, Math.ceil(height))
-  return canvas
+function createCanvas(width: number, height: number): OffscreenCanvas {
+  return new OffscreenCanvas(
+    Math.max(1, Math.ceil(width)),
+    Math.max(1, Math.ceil(height)),
+  )
 }
 
-function getContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+function getContext(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
   const context = canvas.getContext('2d', {
     willReadFrequently: true,
   })
