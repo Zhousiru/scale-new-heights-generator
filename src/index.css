@@ -1,0 +1,48 @@
+:root {
+  --text-strong: #1a1a1a;
+  --text-muted: #888;
+  --border: #e5e5e5;
+  --input-bg: #fafafa;
+  --accent: #333;
+  --ui-font: -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif;
+
+  color: var(--text-strong);
+  font: 14px/1.5 var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #fff;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 13px;
+  font-weight: 600;
+}
