@@ -1,45 +1,227 @@
 .app {
   display: flex;
   flex-direction: column;
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 24px 24px 32px;
-  gap: 24px;
+  gap: 20px;
 }
 
-/* ── Toolbar ── */
+/* ── 双面板布局（并排，窄屏堆叠） ── */
 
-.toolbar {
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-controls {
+  padding: 20px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  /* 控件卡片不超过视口高度；内部滚动，让预览列保持不动。 */
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+.panel-preview {
+  gap: 16px;
+  /* 让 GitHub 链接沉到面板底部 */
+  min-height: calc(100vh - 64px);
+}
+
+/* ── 高级设置（可折叠） ── */
+
+.advanced {
+  border-top: 1px solid var(--card-border);
+  padding-top: 4px;
+}
+
+.advanced-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s;
+}
+
+.advanced[open] .advanced-summary::before {
+  transform: rotate(90deg);
+}
+
+.advanced-summary:hover {
+  color: var(--text-strong);
+}
+
+.advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 12px;
+}
+
+.row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
+/* 预设 + 配色工具栏合并为一行：下拉框吸收剩余空间撑满整行。 */
+.toolbar-row .preset-select {
+  flex: 1 1 auto;
+}
+
+/* ── 文本输入 ── */
+
 .text-input {
-  flex: 1;
-  height: 36px;
-  border: 1px solid #e8e8e8;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 8px 12px;
   font: inherit;
+  line-height: 20px;
   outline: none;
-  background: #fafafa;
+  color: var(--text-strong);
+  background: var(--surface);
+  resize: vertical;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .text-input:focus {
-  border-color: #bbb;
-  background: #fff;
+  border-color: var(--border-strong);
 }
 
-/* ── Color Picker ── */
+/* ── 预设下拉 ── */
+
+.preset-select {
+  flex: 1;
+  min-width: 150px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-strong);
+  background: var(--surface);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.preset-select:focus {
+  border-color: var(--border-strong);
+}
+
+/* ── 样式切换 ── */
+
+.style-toggle {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.style-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.style-option:hover {
+  border-color: var(--border-strong);
+}
+
+.style-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.style-preview {
+  display: block;
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.style-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.style-option.active .style-label {
+  color: var(--accent);
+}
+
+/* ── 图标按钮（骰子等） ── */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.icon-btn:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* ── 渐变颜色选择（1~3 色） ── */
 
 .color-pair {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
 }
 
 .color-swatch {
@@ -47,34 +229,73 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #e0e0e0;
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 0 0 1px var(--border);
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
   transition: box-shadow 0.15s;
 }
 
-.color-swatch:first-child {
-  z-index: 1;
-}
-
-.color-swatch:last-child {
-  margin-left: -6px;
-}
-
 .color-swatch:hover {
-  box-shadow: 0 0 0 1px #bbb;
+  box-shadow: 0 0 0 1px var(--border-strong);
 }
 
 .color-swatch input[type='color'] {
   position: absolute;
-  inset: -8px;
-  width: calc(100% + 16px);
-  height: calc(100% + 16px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: none;
   padding: 0;
+  border-radius: 50%;
   cursor: pointer;
   opacity: 0;
+}
+
+.swatch-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.color-swatch:hover .swatch-remove {
+  opacity: 1;
+}
+
+.swatch-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.swatch-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── 高峰模式 Toggle ── */
@@ -87,29 +308,147 @@
   min-width: 40px;
   padding: 0 12px;
   white-space: nowrap;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #999;
+  color: var(--text-soft);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .peak-toggle:hover {
-  border-color: #bbb;
+  border-color: var(--border-strong);
 }
 
 .peak-toggle.active {
-  background: #0582ff;
-  border-color: #0582ff;
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 
-/* ── Angle Knob ── */
+/* ── 字段（图标输入 + 滑块） ── */
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 高级设置内的字段用 grid 对齐：标签列等宽 + 控件撑满 + 右侧数值列。 */
+.advanced-body .field {
+  display: grid;
+  grid-template-columns: 68px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.advanced-body .field-slider input[type='range'] {
+  min-width: 0;
+}
+
+/* 滑块右侧的实时数值，右对齐固定列宽，避免数字位数变化撑动布局。 */
+.field-value {
+  font-size: 12px;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 30px;
+}
+
+/* 一行内并排的多个 Toggle 按钮。 */
+.toggle-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── 前缀图标输入（撑满整行 + 清空按钮） ── */
+
+.icon-field {
+  width: 100%;
+}
+
+.icon-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.icon-input {
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 30px 0 10px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  color: var(--text-strong);
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+
+.icon-input:focus {
+  border-color: var(--border-strong);
+}
+
+.icon-clear {
+  position: absolute;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-clear:hover {
+  background: var(--border);
+  color: var(--text-strong);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.field-hint:hover {
+  text-decoration: underline;
+}
+
+.field-slider {
+  width: 100%;
+}
+
+.field-slider input[type='range'] {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── 角度旋钮 ── */
 
 .knob-wrap {
   display: flex;
@@ -128,19 +467,24 @@
   display: block;
 }
 
-/* ── Canvas ── */
+/* ── 画布（透明棋盘格，露出边缘） ── */
 
 .canvas-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 150px;
+  justify-content: center;
+  min-height: 220px;
+  padding: 24px;
+  border-radius: 12px;
+  background-color: var(--canvas-bg);
 }
 
 .preview-wrap {
   display: grid;
   place-items: center;
   min-height: 80px;
+  max-width: 100%;
 }
 
 .preview-wrap > * {
@@ -149,30 +493,56 @@
 
 .preview-wrap canvas {
   display: block;
+  max-width: 100%;
+  height: auto;
   transition: opacity 0.15s;
+  /* 棋盘格贴在 canvas 上，只衬托贴纸图像本身，不覆盖预览框留白。 */
+  background-color: var(--canvas-bg);
+  background-image:
+    linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
 
 .preview-wrap canvas.stale {
   opacity: 0.35;
 }
 
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e8e8e8;
-  border-top-color: #999;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+/* “正在思考”：仿 Codex —— 灰色文字上有一束前景色高光横向流动，渐变裁剪到文字本身。 */
+.thinking {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  /* 灰底 + 一束更亮的前景高光；靠 background-position 平移让高光扫过文字。 */
+  background: linear-gradient(
+    100deg,
+    var(--text-faint) 0%,
+    var(--text-faint) 40%,
+    var(--text-strong) 50%,
+    var(--text-faint) 60%,
+    var(--text-faint) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: thinking-flow 1.8s linear infinite;
 }
 
-@keyframes spin {
+@keyframes thinking-flow {
+  from {
+    background-position: 130% 0;
+  }
   to {
-    transform: rotate(360deg);
+    background-position: -30% 0;
   }
 }
 
 .placeholder {
-  color: #d0d0d0;
+  color: var(--text-faint);
   font-size: 13px;
   padding: 48px 0;
   letter-spacing: 0.04em;
@@ -180,33 +550,40 @@
 
 .error {
   margin: 12px 0 0;
-  color: #c00;
+  color: var(--error);
   font-size: 13px;
 }
 
-/* ── Export ── */
+/* ── 导出 / 操作 ── */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
 
 .export-btn {
-  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
+  gap: 7px;
+  height: 38px;
   padding: 0 24px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   font: inherit;
   font-size: 13px;
-  color: #333;
+  color: var(--text-strong);
   text-decoration: none;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .export-btn:hover:not(:disabled) {
-  background: #fafafa;
-  border-color: #ccc;
+  background: var(--surface-hover);
+  border-color: var(--border-stronger);
 }
 
 .export-btn:disabled {
@@ -214,29 +591,30 @@
   cursor: not-allowed;
 }
 
-.iframe-hint {
-  align-self: center;
-  color: #bbb;
-  font-size: 12px;
-}
+/* ── 使用提示 ── */
 
-/* ── Footer ── */
-
-.footer {
-  margin-top: auto;
+.usage-hint {
+  margin: 0;
   text-align: center;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
-.footer a {
+/* ── GitHub 链接（预览面板底部） ── */
+
+.github-link {
+  margin-top: auto;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #ccc;
+  color: var(--github);
   font-size: 12px;
   text-decoration: none;
   transition: color 0.15s;
 }
 
-.footer a:hover {
-  color: #999;
+.github-link:hover {
+  color: var(--github-hover);
 }

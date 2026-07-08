@@ -1,4 +1,5 @@
 import type { StickerControls } from './defaults'
+import { loadIconBitmap } from './iconLoader'
 import type { WorkerResponse } from './workerProtocol'
 
 export interface PreviewResult {
@@ -45,7 +46,12 @@ export function renderStickerPreview(controls: StickerControls): Promise<Preview
   const w = getWorker()
   return new Promise<PreviewResult>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: never) => void, reject })
-    w.postMessage({ type: 'render', id, controls })
+    void loadIconBitmap(controls.icon).then((iconBitmap) => {
+      w.postMessage(
+        { type: 'render', id, controls, iconBitmap },
+        { transfer: iconBitmap ? [iconBitmap] : [] },
+      )
+    })
   })
 }
 
@@ -54,7 +60,12 @@ export function exportStickerBlob(controls: StickerControls): Promise<Blob> {
   const w = getWorker()
   return new Promise<Blob>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: never) => void, reject })
-    w.postMessage({ type: 'export', id, controls })
+    void loadIconBitmap(controls.icon).then((iconBitmap) => {
+      w.postMessage(
+        { type: 'export', id, controls, iconBitmap },
+        { transfer: iconBitmap ? [iconBitmap] : [] },
+      )
+    })
   })
 }
 

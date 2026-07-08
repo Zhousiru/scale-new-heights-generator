@@ -2,10 +2,10 @@ import { renderSticker } from './renderSticker'
 import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
-  const { type, id, controls } = e.data
+  const { type, id, controls, iconBitmap } = e.data
 
   try {
-    const result = await renderSticker(controls)
+    const result = await renderSticker(controls, iconBitmap)
 
     if (type === 'render') {
       const bitmap = result.toBitmap()
@@ -23,7 +23,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       postMessage(msg)
     }
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Rendering failed.'
+    const message = error instanceof Error ? error.message : '渲染失败。'
     const msg: WorkerResponse = { type: 'error', id, message }
     postMessage(msg)
   }

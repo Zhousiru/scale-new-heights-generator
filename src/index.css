@@ -1,14 +1,61 @@
 :root {
+  /* 文本 */
   --text-strong: #1a1a1a;
   --text-muted: #888;
-  --border: #e5e5e5;
-  --input-bg: #fafafa;
-  --accent: #333;
+  --text-soft: #999;
+  --text-faint: #b0b0b0;
+  /* 表面与边框 */
+  --bg: #fff;
+  --card-bg: #fcfcfc;
+  --card-border: #f0f0f0;
+  --surface: #fff;
+  --surface-hover: #fafafa;
+  --border: #e8e8e8;
+  --border-strong: #bbb;
+  --border-stronger: #ccc;
+  /* 强调色 */
+  --accent: #0582ff;
+  --accent-soft: rgba(5, 130, 255, 0.25);
+  --on-accent: #fff;
+  /* 预览与状态 */
+  --checker: #e6e6e6;
+  --canvas-bg: #fff;
+  --error: #c00;
+  --github: #ccc;
+  --github-hover: #999;
+
   --ui-font: -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif;
 
   color: var(--text-strong);
   font: 14px/1.5 var(--ui-font);
   -webkit-font-smoothing: antialiased;
+  color-scheme: light dark;
+}
+
+/* 跟随系统深色模式 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-strong: #f0f0f2;
+    --text-muted: #9a9a9f;
+    --text-soft: #86868b;
+    --text-faint: #6a6a70;
+    --bg: #1a1a1c;
+    --card-bg: #232326;
+    --card-border: #313135;
+    --surface: #2a2a2e;
+    --surface-hover: #33333a;
+    --border: #3a3a40;
+    --border-strong: #55555c;
+    --border-stronger: #66666e;
+    --accent: #3b9dff;
+    --accent-soft: rgba(59, 157, 255, 0.3);
+    --on-accent: #fff;
+    --checker: #3a3a3f;
+    --canvas-bg: #202024;
+    --error: #ff6b6b;
+    --github: #55555c;
+    --github-hover: #9a9a9f;
+  }
 }
 
 * {
@@ -23,7 +70,7 @@ body,
 }
 
 body {
-  background: #fff;
+  background: var(--bg);
 }
 
 button,
