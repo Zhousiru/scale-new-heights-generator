@@ -4,6 +4,7 @@ import {
   normalizeStickerControls,
 } from './defaults'
 import {
+  classifyGrapheme,
   closeMaskRound,
   createStickerLayout,
   erodeMaskRound,
@@ -127,6 +128,65 @@ describe('createStickerLayout', () => {
     )
   })
 
+  it('keeps every letter of an English word at the same height', () => {
+    const layout = createStickerLayout('climb', {
+      fontSize: 220,
+      glyphSkewDeg: -3.5,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+
+    const baselines = layout.placements.map((placement) => placement.baselineY)
+    expect(baselines).toEqual([-16, -16, -16, -16, -16])
+  })
+
+  it('alternates the height per word for multi-word English text', () => {
+    const layout = createStickerLayout('scale new heights', {
+      fontSize: 220,
+      glyphSkewDeg: -3.5,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+
+    const word = layout.placements.map((p) => p.grapheme).join('')
+    expect(word).toBe('scalenewheights')
+
+    // "scale" -> unit 0 (-16), "new" -> unit 1 (16), "heights" -> unit 2 (-16)
+    const scale = layout.placements.slice(0, 5).map((p) => p.baselineY)
+    const neu = layout.placements.slice(5, 8).map((p) => p.baselineY)
+    const heights = layout.placements.slice(8).map((p) => p.baselineY)
+    expect(new Set(scale)).toEqual(new Set([-16]))
+    expect(new Set(neu)).toEqual(new Set([16]))
+    expect(new Set(heights)).toEqual(new Set([-16]))
+  })
+
+  it('produces no height difference when alternatingOffset is zero (flat mode)', () => {
+    const layout = createStickerLayout('scale new heights', {
+      fontSize: 220,
+      glyphSkewDeg: -3.5,
+      letterSpacing: 9,
+      alternatingOffset: 0,
+      measureGlyph,
+    })
+
+    expect(layout.placements.every((p) => p.baselineY === 0)).toBe(true)
+  })
+
+  it('keeps CJK characters climbing one per character even next to English', () => {
+    const layout = createStickerLayout('高峰 up', {
+      fontSize: 220,
+      glyphSkewDeg: -3.5,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+
+    // 高 -> -16, 峰 -> 16, then "up" as one word -> -16 for both letters
+    expect(layout.placements.map((p) => p.baselineY)).toEqual([-16, 16, -16, -16])
+  })
+
   it('supports negative letterSpacing without breaking glyph ordering', () => {
     const overlapped = createStickerLayout('勇攀高峰', {
       fontSize: 220,
@@ -147,6 +207,18 @@ describe('createStickerLayout', () => {
     expect(overlapped.bounds.maxX - overlapped.bounds.minX).toBeLessThan(
       normal.bounds.maxX - normal.bounds.minX,
     )
+  })
+})
+
+describe('classifyGrapheme', () => {
+  it('separates CJK, word, space, and other graphemes', () => {
+    expect(classifyGrapheme('高')).toBe('cjk')
+    expect(classifyGrapheme('あ')).toBe('cjk')
+    expect(classifyGrapheme('a')).toBe('word')
+    expect(classifyGrapheme('7')).toBe('word')
+    expect(classifyGrapheme('é')).toBe('word')
+    expect(classifyGrapheme(' ')).toBe('space')
+    expect(classifyGrapheme('，')).toBe('other')
   })
 })
 

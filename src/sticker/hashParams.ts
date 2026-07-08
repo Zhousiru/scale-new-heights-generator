@@ -20,6 +20,7 @@ export function controlsToHash(controls: StickerControls): string {
   put('sk', controls.glyphSkewDeg, d.glyphSkewDeg)
   put('ls', controls.letterSpacing, d.letterSpacing)
   put('ao', controls.alternatingOffset, d.alternatingOffset)
+  put('pk', controls.peak ? 1 : 0, d.peak ? 1 : 0)
 
   put('sx', controls.shadow.offsetX, d.shadow.offsetX)
   put('sy', controls.shadow.offsetY, d.shadow.offsetY)
@@ -47,6 +48,7 @@ export function hashToControls(hash: string): StickerControls {
     glyphSkewDeg: num(p.get('sk')),
     letterSpacing: num(p.get('ls')),
     alternatingOffset: num(p.get('ao')),
+    peak: bool(p.get('pk')),
     shadow: {
       offsetX: num(p.get('sx')),
       offsetY: num(p.get('sy')),
@@ -76,4 +78,9 @@ function num(v: string | null): number | undefined {
 function hex(v: string | null): string | undefined {
   if (v === null) return undefined
   return `#${v}`
+}
+
+function bool(v: string | null): boolean | undefined {
+  if (v === null) return undefined
+  return v === '1' || v === 'true'
 }

@@ -11,6 +11,9 @@ const ENVELOPE_ANTIALIAS = 1.1
 const OUTLINE_ANTIALIAS = 0.9
 const ALPHA_THRESHOLD = 16
 const DISTANCE_INF = 1e15
+// Fraction of the font's space advance used between words. The default space
+// glyph is quite wide for a bold display font, so we tighten the word gap.
+const SPACE_ADVANCE_SCALE = 0.35
 
 export interface Bounds {
   minX: number
@@ -80,6 +83,22 @@ export function getAlternatingOffset(index: number, amplitude: number): number {
   return index % 2 === 0 ? -amplitude : amplitude
 }
 
+export type GraphemeKind = 'space' | 'cjk' | 'word' | 'other'
+
+const CJK_PATTERN =
+  /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\uff66-\uff9f]/u
+const WORD_PATTERN = /[0-9A-Za-z\u00c0-\u024f'’.-]/u
+
+// Classifies a grapheme to decide how it groups into a "climbing" unit.
+// CJK characters climb one-per-character (unchanged behavior), while runs of
+// Latin letters/digits form a single word unit so every letter shares a height.
+export function classifyGrapheme(grapheme: string): GraphemeKind {
+  if (/^\s+$/u.test(grapheme)) return 'space'
+  if (CJK_PATTERN.test(grapheme)) return 'cjk'
+  if (WORD_PATTERN.test(grapheme)) return 'word'
+  return 'other'
+}
+
 export function measureSkewedGlyphBounds(
   measurement: GlyphMeasurement,
   skewDeg: number,
@@ -125,13 +144,33 @@ export function createStickerLayout(
   let cursorX = 0
   let bounds: Bounds | null = null
 
-  graphemes.forEach((grapheme, index) => {
+  // A "unit" is one climbing step. Each CJK character is its own unit, while a
+  // run of Latin word characters shares a single unit (and thus one baselineY),
+  // so the letters within an English word all sit at the same height.
+  let unitIndex = -1
+  let prevKind: GraphemeKind | null = null
+
+  graphemes.forEach((grapheme) => {
+    const kind = classifyGrapheme(grapheme)
+
+    if (kind === 'space') {
+      const measurement = options.measureGlyph(grapheme, options.fontSize)
+      cursorX += Math.max(0, measurement.advanceWidth * SPACE_ADVANCE_SCALE)
+      prevKind = 'space'
+      return
+    }
+
+    const continuesWord = kind === 'word' && prevKind === 'word'
+    if (!continuesWord) {
+      unitIndex += 1
+    }
+
     const measurement = options.measureGlyph(grapheme, options.fontSize)
     const skewedBounds = measureSkewedGlyphBounds(
       measurement,
       options.glyphSkewDeg,
     )
-    const baselineY = getAlternatingOffset(index, options.alternatingOffset)
+    const baselineY = getAlternatingOffset(unitIndex, options.alternatingOffset)
     const placementBounds = offsetBounds(skewedBounds, cursorX, baselineY)
 
     placements.push({
@@ -144,6 +183,7 @@ export function createStickerLayout(
 
     bounds = bounds ? mergeBounds(bounds, placementBounds) : placementBounds
     cursorX += measurement.advanceWidth + letterSpacing
+    prevKind = kind
   })
 
   return {
@@ -295,7 +335,7 @@ export async function renderSticker(
     fontSize: controls.fontSize,
     glyphSkewDeg: controls.glyphSkewDeg,
     letterSpacing: controls.letterSpacing,
-    alternatingOffset: controls.alternatingOffset,
+    alternatingOffset: controls.peak ? controls.alternatingOffset : 0,
     measureGlyph: measureGlyphWithCanvas,
   })
 

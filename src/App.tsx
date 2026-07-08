@@ -170,6 +170,15 @@ function App() {
           value={controls.envelope.gradientAngle}
           onChange={(v) => updateEnvelope('gradientAngle', v)}
         />
+        <button
+          className={`peak-toggle${controls.peak ? ' active' : ''}`}
+          type="button"
+          aria-pressed={controls.peak}
+          title="高峰模式（开启为错位效果，关闭则对齐）"
+          onClick={() => updateControl('peak', !controls.peak)}
+        >
+          高峰模式
+        </button>
       </div>
 
       <div className="canvas-area">

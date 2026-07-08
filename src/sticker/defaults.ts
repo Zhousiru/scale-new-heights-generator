@@ -22,6 +22,8 @@ export interface StickerControls {
   glyphSkewDeg: number
   letterSpacing: number
   alternatingOffset: number
+  /** 高峰模式: when enabled, words climb with the staggered height offset; when disabled they align flat. */
+  peak: boolean
   shadow: StickerShadowControls
   envelope: StickerEnvelopeControls
 }
@@ -32,6 +34,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   glyphSkewDeg: -3.5,
   letterSpacing: -8,
   alternatingOffset: 16,
+  peak: true,
   shadow: {
     offsetX: 5,
     offsetY: 5,
@@ -79,6 +82,10 @@ export function normalizeStickerControls(value: unknown): StickerControls {
       48,
       DEFAULT_STICKER_CONTROLS.alternatingOffset,
     ),
+    peak:
+      typeof input.peak === 'boolean'
+        ? input.peak
+        : DEFAULT_STICKER_CONTROLS.peak,
     shadow: {
       offsetX: clampNumber(
         shadow.offsetX,
