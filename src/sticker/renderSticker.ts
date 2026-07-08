@@ -8,6 +8,8 @@ interface FontDescriptor {
   family: string
   weight: string
   file: string
+  /** 同一个 UI 描边值在不同字面上的视觉外扩倍率。 */
+  outlineScale: number
   /**
    * 每种字体在绘制时应用的字形整形参数（见 `drawPlacedGlyphs`）。这些是按字面
    * 手动精调的旋钮，只作用于文字字形（Emoji 保持直立）。所有变换都以每个字形的
@@ -19,8 +21,9 @@ interface FontDescriptor {
 const FONT_REGISTRY: Record<StickerFlavor, FontDescriptor> = {
   snh: {
     family: 'DouyinSansBold',
-    weight: '900',
+    weight: 'normal',
     file: 'DouyinSansBold.woff2',
+    outlineScale: 1,
     // >>> 勇攀高峰 (抖音美好体) 手动精调区：如需垂直方向挤压等，改这里 <<<
     // scale=[水平, 垂直]；skewDeg=[水平斜切, 垂直斜切]（度）。
     // 垂直斜切 -3.5° 即该字面固有的竖向倾斜。
@@ -36,13 +39,14 @@ const FONT_REGISTRY: Record<StickerFlavor, FontDescriptor> = {
     family: 'YouSheBiaoTiHei',
     weight: 'normal',
     file: 'YouSheBiaoTiHei.ttf',
-    // >>> 字节范 (优设标题黑) 手动精调区：垂直拉高 + 逆时针旋转 + 反向水平斜切 <<<
+    // 优设标题黑字面本身更厚，且 bs 直接画深色外轮廓；同等像素外扩会显得更重。
+    outlineScale: 0.7,
+    // >>> 字节范 (优设标题黑) 手动精调区：垂直拉高 + 固有水平斜切 <<<
     // scale=[水平, 垂直]；skewDeg=[水平斜切, 垂直斜切]（度）。
-    // 水平斜切 5° 约等于原 horizontalShear 效果；垂直斜切 -2.1° 是该字面固有的竖向倾斜。
     transform: {
       scale: [1, 1.12],
-      rotationDeg: 2,
-      skewDeg: [5, -2.1],
+      rotationDeg: 0,
+      skewDeg: [8, -6],
     },
   },
 }
@@ -51,6 +55,10 @@ const FONT_REGISTRY: Record<StickerFlavor, FontDescriptor> = {
 // 的旋钮。只整形文字字形；Emoji 保持直立以避免描边尖峰。
 export function fontGlyphTransform(flavor: StickerFlavor): GlyphTransform {
   return FONT_REGISTRY[flavor].transform
+}
+
+function effectiveOutlineWidth(flavor: StickerFlavor, width: number): number {
+  return width * FONT_REGISTRY[flavor].outlineScale
 }
 
 function fontSpec(flavor: StickerFlavor, fontSize: number): string {
@@ -116,6 +124,14 @@ const IDENTITY_GLYPH_TRANSFORM: GlyphTransform = {
   skewDeg: [0, 0],
 }
 
+function iconGlyphTransformFrom(baseTransform: GlyphTransform): GlyphTransform {
+  return {
+    scale: [1, 1],
+    rotationDeg: 0,
+    skewDeg: [0, baseTransform.skewDeg[1]],
+  }
+}
+
 export interface StickerLayout {
   placements: GlyphPlacement[]
   bounds: Bounds
@@ -129,6 +145,11 @@ export interface BinaryMask {
   width: number
   height: number
   data: Uint8ClampedArray
+}
+
+interface GradientExtent {
+  startProjection: number
+  endProjection: number
 }
 
 export interface OpaqueBounds {
@@ -487,6 +508,9 @@ export async function renderSticker(
   const glyphTransform: GlyphTransform = controls.tilt
     ? baseTransform
     : { scale: baseTransform.scale, rotationDeg: 0, skewDeg: [0, 0] }
+  const iconGlyphTransform = controls.iconTilt
+    ? iconGlyphTransformFrom(baseTransform)
+    : IDENTITY_GLYPH_TRANSFORM
 
   const layout = createStickerLayout(trimmedText, {
     fontSize: controls.fontSize,
@@ -499,7 +523,12 @@ export async function renderSticker(
   })
 
   const iconBox = iconBitmap
-    ? computeIconBox(iconBitmap, layout, controls.fontSize)
+    ? computeIconBox(
+      iconBitmap,
+      layout,
+      controls.fontSize,
+      iconGlyphTransform,
+    )
     : null
   const contentBounds = iconBox
     ? mergeBounds(layout.bounds, iconBox)
@@ -525,7 +554,14 @@ export async function renderSticker(
   // 既保留真实配色，又不让其抗锯齿边缘被阈值化后的杂散点参与描边膨胀。
   drawFilledGlyphs(sourceMaskContext, layout, originX, originY, isTextPlacement)
   if (iconBitmap && iconBox) {
-    drawIcon(sourceMaskContext, iconBitmap, iconBox, originX, originY)
+    drawIcon(
+      sourceMaskContext,
+      iconBitmap,
+      iconBox,
+      originX,
+      originY,
+      iconGlyphTransform,
+    )
   }
 
   const sourceMask = thresholdAlphaMask(
@@ -550,13 +586,13 @@ export async function renderSticker(
   const paintFamilyGradient = (
     context: OffscreenCanvasRenderingContext2D,
     stops: string[],
+    extent: GradientExtent,
   ) => {
     context.fillStyle = createGradient(
       context,
-      workingWidth,
-      workingHeight,
       controls.envelope.gradientAngle,
       stops,
+      extent,
     )
     context.fillRect(0, 0, workingWidth, workingHeight)
   }
@@ -572,7 +608,10 @@ export async function renderSticker(
   if (controls.flavor === 'snh') {
     // 白色字形置于彩色包体内并带较深的边缘轮廓，另在字形下方叠加 multiply 混合
     // 阴影，使白字读起来像是浮在彩色主体之上（匹配源表情包）。
-    const bandWidth = controls.envelope.outlineStrokeWidth
+    const bandWidth = effectiveOutlineWidth(
+      controls.flavor,
+      controls.envelope.outlineStrokeWidth,
+    )
     const envelopeMask = fillEnclosedRegions(
       dilateMaskRound(sourceMask, bandWidth),
     )
@@ -583,10 +622,14 @@ export async function renderSticker(
     const envelopeMaskCanvas = maskToCanvas(envelopeMask, ENVELOPE_ANTIALIAS)
     const edgeMaskCanvas = maskToCanvas(edgeMask, OUTLINE_ANTIALIAS)
     const glyphMaskCanvas = maskToCanvas(sourceMask, OUTLINE_ANTIALIAS)
+    const envelopeGradientExtent = gradientExtentFromMask(
+      envelopeMask,
+      controls.envelope.gradientAngle,
+    )
 
     // 彩色渐变主体。
     paintMask(outputContext, envelopeMaskCanvas, (context) =>
-      paintFamilyGradient(context, gradientStops),
+      paintFamilyGradient(context, gradientStops, envelopeGradientExtent),
     )
     // 较深的边缘轮廓，用 multiply 混合使其读起来像阴影化的边框。
     paintMask(
@@ -596,6 +639,7 @@ export async function renderSticker(
         paintFamilyGradient(
           context,
           gradientStops.map((color) => darken(color, 0.45)),
+          envelopeGradientExtent,
         ),
       controls.envelope.edgeOpacity,
       'multiply',
@@ -626,23 +670,30 @@ export async function renderSticker(
     )
   } else {
     // 彩色字形直接由加深的同色系外层带包裹——没有白色描边。外扩部分就是加深后的颜色本身。
-    const rimWidth =
-      controls.envelope.outlineStrokeWidth + controls.envelope.edgeWidth
+    const rimWidth = effectiveOutlineWidth(
+      controls.flavor,
+      controls.envelope.outlineStrokeWidth,
+    )
     const deepMask = fillEnclosedRegions(dilateMaskRound(sourceMask, rimWidth))
     const deepMaskCanvas = maskToCanvas(deepMask, ENVELOPE_ANTIALIAS)
     const glyphMaskCanvas = maskToCanvas(sourceMask, OUTLINE_ANTIALIAS)
+    const deepGradientExtent = gradientExtentFromMask(
+      deepMask,
+      controls.envelope.gradientAngle,
+    )
 
     // 外层带：加深后的同族渐变。
     paintMask(outputContext, deepMaskCanvas, (context) =>
       paintFamilyGradient(
         context,
         gradientStops.map((color) => darken(color, 0.42)),
+        deepGradientExtent,
       ),
     )
     // 前景层：字形与图标，填充同族渐变。使用字形蒙版（而非 fillText）能让整个词
     // 保持一条连续的渐变，并把图标重新着色以匹配。
     paintMask(outputContext, glyphMaskCanvas, (context) =>
-      paintFamilyGradient(context, gradientStops),
+      paintFamilyGradient(context, gradientStops, deepGradientExtent),
     )
   }
 
@@ -816,6 +867,8 @@ interface IconBox {
   minY: number
   maxX: number
   maxY: number
+  drawWidth: number
+  drawHeight: number
 }
 
 // 将图标缩放到第一行文字的字高，并放在字形左侧，在该行内垂直居中。
@@ -823,6 +876,7 @@ function computeIconBox(
   iconBitmap: ImageBitmap,
   layout: StickerLayout,
   fontSize: number,
+  transform: GlyphTransform,
 ): IconBox {
   const size = fontSize * 0.86
   const aspect = iconBitmap.width / iconBitmap.height || 1
@@ -835,12 +889,16 @@ function computeIconBox(
 
   const maxX = layout.bounds.minX - gap
   const minX = maxX - drawWidth
-  return {
+  const box = {
     minX,
     minY: centerY - size / 2,
     maxX,
     maxY: centerY + size / 2,
+    drawWidth,
+    drawHeight: size,
   }
+
+  return transformIconBox(box, transform)
 }
 
 function drawIcon(
@@ -849,18 +907,108 @@ function drawIcon(
   box: IconBox,
   originX: number,
   originY: number,
+  transform: GlyphTransform,
 ): void {
   context.save()
   context.imageSmoothingEnabled = true
   context.imageSmoothingQuality = 'high'
+  const centerX = (box.minX + box.maxX) / 2
+  const centerY = (box.minY + box.maxY) / 2
+  context.translate(originX + centerX, originY + centerY)
+  applyGlyphTransform(context, transform)
   context.drawImage(
     iconBitmap,
-    originX + box.minX,
-    originY + box.minY,
-    box.maxX - box.minX,
-    box.maxY - box.minY,
+    -box.drawWidth / 2,
+    -box.drawHeight / 2,
+    box.drawWidth,
+    box.drawHeight,
   )
   context.restore()
+}
+
+function transformIconBox(box: IconBox, transform: GlyphTransform): IconBox {
+  const centerX = (box.minX + box.maxX) / 2
+  const centerY = (box.minY + box.maxY) / 2
+  const corners = [
+    [box.minX - centerX, box.minY - centerY],
+    [box.maxX - centerX, box.minY - centerY],
+    [box.minX - centerX, box.maxY - centerY],
+    [box.maxX - centerX, box.maxY - centerY],
+  ] as const
+
+  let minX = Number.POSITIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+
+  for (const [x, y] of corners) {
+    const point = transformGlyphPoint(x, y, transform)
+    minX = Math.min(minX, centerX + point.x)
+    minY = Math.min(minY, centerY + point.y)
+    maxX = Math.max(maxX, centerX + point.x)
+    maxY = Math.max(maxY, centerY + point.y)
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    drawWidth: box.drawWidth,
+    drawHeight: box.drawHeight,
+  }
+}
+
+function applyGlyphTransform(
+  context: OffscreenCanvasRenderingContext2D,
+  transform: GlyphTransform,
+): void {
+  const { scale, rotationDeg, skewDeg } = transform
+  const [scaleX, scaleY] = scale
+  const rotationRad = (rotationDeg * Math.PI) / 180
+  const horizontalSkewTangent = Math.tan((skewDeg[0] * Math.PI) / 180)
+  const verticalSkewTangent = Math.tan((skewDeg[1] * Math.PI) / 180)
+
+  if (scaleX !== 1 || scaleY !== 1) context.scale(scaleX, scaleY)
+  if (rotationRad !== 0) context.rotate(-rotationRad)
+  if (horizontalSkewTangent !== 0) {
+    context.transform(1, 0, horizontalSkewTangent, 1, 0, 0)
+  }
+  if (verticalSkewTangent !== 0) {
+    context.transform(1, verticalSkewTangent, 0, 1, 0, 0)
+  }
+}
+
+function transformGlyphPoint(
+  x: number,
+  y: number,
+  transform: GlyphTransform,
+): { x: number; y: number } {
+  const [scaleX, scaleY] = transform.scale
+  let nextX = x * scaleX
+  let nextY = y * scaleY
+
+  const rotationRad = (-transform.rotationDeg * Math.PI) / 180
+  if (rotationRad !== 0) {
+    const cos = Math.cos(rotationRad)
+    const sin = Math.sin(rotationRad)
+    const rotatedX = nextX * cos - nextY * sin
+    const rotatedY = nextX * sin + nextY * cos
+    nextX = rotatedX
+    nextY = rotatedY
+  }
+
+  const horizontalSkewTangent = Math.tan((transform.skewDeg[0] * Math.PI) / 180)
+  if (horizontalSkewTangent !== 0) {
+    nextX += horizontalSkewTangent * nextY
+  }
+
+  const verticalSkewTangent = Math.tan((transform.skewDeg[1] * Math.PI) / 180)
+  if (verticalSkewTangent !== 0) {
+    nextY += verticalSkewTangent * nextX
+  }
+
+  return { x: nextX, y: nextY }
 }
 
 export function fillEnclosedRegions(mask: BinaryMask): BinaryMask {
@@ -915,25 +1063,20 @@ function extractAlphaChannel(rgba: Uint8ClampedArray): Uint8ClampedArray {
 
 function createGradient(
   context: OffscreenCanvasRenderingContext2D,
-  width: number,
-  height: number,
   angleDeg: number,
   stops: string[],
+  extent: GradientExtent,
 ): CanvasGradient {
   const angle = ((angleDeg - 90) * Math.PI) / 180
   const dx = Math.cos(angle)
   const dy = Math.sin(angle)
-  const halfLength = (Math.abs(dx) * width + Math.abs(dy) * height) / 2
-  const centerX = width / 2
-  const centerY = height / 2
   const gradient = context.createLinearGradient(
-    centerX - dx * halfLength,
-    centerY - dy * halfLength,
-    centerX + dx * halfLength,
-    centerY + dy * halfLength,
+    dx * extent.startProjection,
+    dy * extent.startProjection,
+    dx * extent.endProjection,
+    dy * extent.endProjection,
   )
 
-  // 单色时兜底重复，其余按停靠点均匀分布。
   const list = stops.length > 0 ? stops : ['#000000']
   if (list.length === 1) {
     gradient.addColorStop(0, list[0])
@@ -944,6 +1087,34 @@ function createGradient(
     })
   }
   return gradient
+}
+
+function gradientExtentFromMask(mask: BinaryMask, angleDeg: number): GradientExtent {
+  const angle = ((angleDeg - 90) * Math.PI) / 180
+  const dx = Math.cos(angle)
+  const dy = Math.sin(angle)
+  let startProjection = Number.POSITIVE_INFINITY
+  let endProjection = Number.NEGATIVE_INFINITY
+
+  for (let y = 0; y < mask.height; y += 1) {
+    for (let x = 0; x < mask.width; x += 1) {
+      if (mask.data[y * mask.width + x] === 0) continue
+
+      // 用像素中心做投影，stop 0/1 对应实际可见蒙版在该方向上的两端。
+      const projection = (x + 0.5) * dx + (y + 0.5) * dy
+      startProjection = Math.min(startProjection, projection)
+      endProjection = Math.max(endProjection, projection)
+    }
+  }
+
+  if (!Number.isFinite(startProjection) || endProjection <= startProjection) {
+    const fallbackWidth = Math.max(1, mask.width)
+    const fallbackHeight = Math.max(1, mask.height)
+    const fallbackEnd = Math.abs(dx) * fallbackWidth + Math.abs(dy) * fallbackHeight
+    return { startProjection: 0, endProjection: fallbackEnd }
+  }
+
+  return { startProjection, endProjection }
 }
 
 function maskToCanvas(mask: BinaryMask, softenRadius = 0): OffscreenCanvas {

@@ -34,6 +34,7 @@ export function controlsToSearch(controls: StickerControls): StickerSearch {
   put('ao', controls.alternatingOffset, d.alternatingOffset)
   put('pk', controls.peak ? 1 : 0, d.peak ? 1 : 0)
   put('tl', controls.tilt ? 1 : 0, d.tilt ? 1 : 0)
+  put('it', controls.iconTilt ? 1 : 0, d.iconTilt ? 1 : 0)
 
   put('sx', controls.shadow.offsetX, d.shadow.offsetX)
   put('sy', controls.shadow.offsetY, d.shadow.offsetY)
@@ -69,6 +70,7 @@ export function searchToControls(search: StickerSearch): StickerControls {
     alternatingOffset: num(get('ao')),
     peak: bool(get('pk')),
     tilt: bool(get('tl')),
+    iconTilt: bool(get('it')),
     shadow: {
       offsetX: num(get('sx')),
       offsetY: num(get('sy')),

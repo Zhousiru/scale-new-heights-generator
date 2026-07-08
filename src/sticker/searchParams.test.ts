@@ -31,6 +31,7 @@ describe('searchParams', () => {
       fontSize: 260,
       lineHeight: 1.4,
       peak: false,
+      iconTilt: false,
       envelope: {
         ...DEFAULT_STICKER_CONTROLS.envelope,
         colors: ['#112233', '#445566', '#778899'],

@@ -40,8 +40,10 @@ export interface StickerControls {
   alternatingOffset: number
   /** 高峰模式：开启时词以错位高度攀登，关闭时对齐平铺。 */
   peak: boolean
-  /** 字符倾斜：开启时应用字面固有的旋转/斜切；关闭时字形直立（仅保留缩放）。 */
+  /** 文本倾斜：开启时应用字面固有的旋转/斜切；关闭时字形直立（仅保留缩放）。 */
   tilt: boolean
+  /** 图标倾斜：开启时前缀图标跟随字面旋转/斜切。 */
+  iconTilt: boolean
   shadow: StickerShadowControls
   envelope: StickerEnvelopeControls
   /** 裁剪结果四周的透明留白，按轴独立设置。 */
@@ -58,6 +60,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   alternatingOffset: 16,
   peak: true,
   tilt: true,
+  iconTilt: true,
   shadow: {
     offsetX: 4,
     offsetY: 6,
@@ -70,7 +73,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   envelope: {
     outlineStrokeWidth: 20,
     edgeWidth: 4,
-    colors: ['#76baf4', '#2194f7'],
+    colors: ['#08e', '#9cf'],
     gradientAngle: 180,
     edgeOpacity: 0.2,
   },
@@ -126,6 +129,10 @@ export function normalizeStickerControls(value: unknown): StickerControls {
       typeof input.tilt === 'boolean'
         ? input.tilt
         : DEFAULT_STICKER_CONTROLS.tilt,
+    iconTilt:
+      typeof input.iconTilt === 'boolean'
+        ? input.iconTilt
+        : DEFAULT_STICKER_CONTROLS.iconTilt,
     shadow: {
       offsetX: clampNumber(
         shadow.offsetX,

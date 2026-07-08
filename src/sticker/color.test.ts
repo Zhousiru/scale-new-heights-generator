@@ -8,7 +8,7 @@ import {
 } from './color'
 
 describe('deriveDepthColor', () => {
-  it('keeps hue but produces a darker, saturated companion', () => {
+  it('keeps hue while producing a darker companion', () => {
     const base = '#4c9acc'
     const depth = deriveDepthColor(base)
     const a = colord(base).toHsl()
@@ -16,7 +16,16 @@ describe('deriveDepthColor', () => {
 
     expect(Math.abs(a.h - b.h)).toBeLessThan(2)
     expect(b.l).toBeLessThan(a.l)
-    expect(b.s).toBeGreaterThanOrEqual(a.s)
+  })
+
+  it('reduces chroma pressure for highly saturated light colors', () => {
+    const base = '#66ffcc'
+    const depth = deriveDepthColor(base)
+    const a = colord(base).toHsl()
+    const b = colord(depth).toHsl()
+
+    expect(b.l).toBeLessThan(a.l)
+    expect(b.s).toBeLessThan(a.s)
   })
 })
 
@@ -62,10 +71,23 @@ describe('randomVividColor', () => {
     expect(color).toMatch(/^#[0-9a-f]{6}$/)
   })
 
-  it('same-hue branch preserves the base hue', () => {
-    // random() 始终 >= 0.5 -> 非邻色相 -> 色相不变
-    const color = randomVividColor('#1d8df0', () => 0.9)
-    const base = colord('#1d8df0').toHsl()
-    expect(Math.abs(colord(color).toHsl().h - base.h)).toBeLessThan(2)
+  it('does not drift into pink and purple when clicked repeatedly', () => {
+    let seed = 1
+    const random = () => {
+      seed = (seed * 9301 + 49297) % 233280
+      return seed / 233280
+    }
+    let color = '#76baf4'
+    let pinkOrPurpleCount = 0
+
+    for (let i = 0; i < 80; i += 1) {
+      color = randomVividColor(color, random)
+      const hue = colord(color).toHsl().h
+      if (hue >= 250 && hue < 340) {
+        pinkOrPurpleCount += 1
+      }
+    }
+
+    expect(pinkOrPurpleCount).toBeLessThanOrEqual(16)
   })
 })

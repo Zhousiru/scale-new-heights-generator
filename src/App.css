@@ -94,9 +94,16 @@
   gap: 12px;
 }
 
-/* 预设 + 配色工具栏合并为一行：下拉框吸收剩余空间撑满整行。 */
+/* 预设 + 配色 + 随机 + 角度固定为一行，避免角度旋钮被挤到下一行。 */
+.toolbar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 10px;
+}
+
 .toolbar-row .preset-select {
-  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 /* ── 文本输入 ── */
@@ -145,9 +152,10 @@
 /* ── 样式切换 ── */
 
 .style-toggle {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .style-option {
@@ -155,6 +163,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -175,7 +184,8 @@
 .style-preview {
   display: block;
   height: 40px;
-  width: auto;
+  width: 100%;
+  max-width: 112px;
   object-fit: contain;
   pointer-events: none;
 }
@@ -183,6 +193,7 @@
 .style-label {
   font-size: 12px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .style-option.active .style-label {
@@ -221,11 +232,12 @@
 .color-pair {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
 }
 
 .color-swatch {
   position: relative;
+  z-index: 1;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -276,24 +288,54 @@
   opacity: 1;
 }
 
-.swatch-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
+/* 色块之间/两侧的插入按钮：一个幽灵圆形「+」。它在文档流里不占宽度（width:0），
+   靠绝对定位的圆形叠盖在相邻色块的缝隙上；平时完全隐藏，hover 整行时淡出显现，
+   放大后可从缝隙点击。这样色块保持紧贴、隐藏时不留空隙。 */
+.swatch-insert {
+  position: relative;
+  width: 8px;
   height: 28px;
   flex-shrink: 0;
-  border: 1px dashed var(--border-strong);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
+  border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  z-index: 0;
+  /* 隐藏时不拦截点击，避免叠在相邻色块上挡住取色。hover 整行才激活。 */
+  pointer-events: none;
 }
 
-.swatch-add:hover {
+.color-pair:hover .swatch-insert {
+  pointer-events: auto;
+}
+
+.swatch-insert::before {
+  content: '+';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.color-pair:hover .swatch-insert::before {
+  opacity: 0.9;
+}
+
+.swatch-insert:hover::before {
+  opacity: 1;
   border-color: var(--accent);
   color: var(--accent);
 }

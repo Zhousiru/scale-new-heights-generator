@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import { Icon } from '@iconify/react'
 import './App.css'
 import { AngleKnob } from './AngleKnob'
 import {
+  DEFAULT_STICKER_CONTROLS,
   type StickerControls,
   type StickerEnvelopeControls,
   type StickerFlavor,
@@ -20,7 +22,7 @@ import {
 import { deriveDepthColor, randomVividColor } from './sticker/color'
 import {
   STICKER_PRESETS,
-  STICKER_PRESET_GROUPS,
+  STICKER_PRESET_LIST,
   type StickerPreset,
 } from './sticker/presets'
 import {
@@ -167,7 +169,7 @@ function App() {
     const color = randomVividColor(controls.envelope.colors[0] ?? '#76baf4')
     setControls((c) => ({
       ...c,
-      envelope: { ...c.envelope, colors: [color] },
+      envelope: { ...c.envelope, colors: [color], gradientAngle: 0 },
     }))
   }
 
@@ -179,14 +181,15 @@ function App() {
     })
   }
 
-  const addColor = () => {
+  const addColor = (at?: number) => {
     setControls((c) => {
       if (c.envelope.colors.length >= 3) return c
-      const last = c.envelope.colors[c.envelope.colors.length - 1] ?? '#76baf4'
-      return {
-        ...c,
-        envelope: { ...c.envelope, colors: [...c.envelope.colors, deriveDepthColor(last)] },
-      }
+      const colors = [...c.envelope.colors]
+      const index = at ?? colors.length
+      // 新增色以相邻色块派生的深色作为初值，避免凭空插入突兀颜色。
+      const seed = colors[index - 1] ?? colors[index] ?? '#76baf4'
+      colors.splice(index, 0, deriveDepthColor(seed))
+      return { ...c, envelope: { ...c.envelope, colors } }
     })
   }
 
@@ -202,18 +205,19 @@ function App() {
     setControls((c) => ({
       ...c,
       text: preset.text,
-      flavor: preset.flavor,
-      icon: preset.icon,
+      flavor: preset.flavor ?? DEFAULT_STICKER_CONTROLS.flavor,
+      icon: preset.icon ?? DEFAULT_STICKER_CONTROLS.icon,
+      iconTilt: preset.iconTilt ?? DEFAULT_STICKER_CONTROLS.iconTilt,
       envelope: {
         ...c.envelope,
         colors: preset.colors,
-        gradientAngle: preset.gradientAngle,
+        gradientAngle: preset.gradientAngle ?? DEFAULT_STICKER_CONTROLS.envelope.gradientAngle,
       },
     }))
   }
 
   const handlePresetSelect = (value: string) => {
-    const preset = STICKER_PRESETS.find((p) => p.text === value)
+    const preset = STICKER_PRESET_LIST.find((p) => p.text === value)
     if (preset) applyPreset(preset)
   }
 
@@ -266,7 +270,7 @@ function App() {
     }
   }
 
-  const activePreset = STICKER_PRESETS.find((p) => p.text === controls.text)
+  const activePreset = STICKER_PRESET_LIST.find((p) => p.text === controls.text)
 
   return (
     <main className="app">
@@ -289,55 +293,59 @@ function App() {
               <option value="" disabled>
                 选择预设文案…
               </option>
-              {STICKER_PRESET_GROUPS.map((group) => (
+              {Object.entries(STICKER_PRESETS).map(([group, presets]) => (
                 <optgroup key={group} label={group}>
-                  {STICKER_PRESETS.filter((preset) => preset.group === group).map(
-                    (preset) => (
-                      <option
-                        key={preset.text}
-                        value={preset.text}
-                        style={{ color: preset.colors[preset.colors.length - 1], fontWeight: 600 }}
-                      >
-                        {preset.text}
-                      </option>
-                    ),
-                  )}
+                  {presets.map((preset) => (
+                    <option
+                      key={preset.text}
+                      value={preset.text}
+                      style={{ color: preset.colors[preset.colors.length - 1], fontWeight: 600 }}
+                    >
+                      {preset.label ?? preset.text}
+                    </option>
+                  ))}
                 </optgroup>
               ))}
             </select>
             <div className="color-pair">
               {controls.envelope.colors.map((color, index) => (
-                <div
-                  key={index}
-                  className="color-swatch"
-                  style={{ backgroundColor: color }}
-                >
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => updateColorAt(index, e.target.value)}
-                  />
-                  {controls.envelope.colors.length > 1 && (
+                <Fragment key={index}>
+                  {controls.envelope.colors.length < 3 && (
                     <button
-                      className="swatch-remove"
+                      className="swatch-insert"
                       type="button"
-                      title="移除该颜色"
-                      onClick={() => removeColor(index)}
-                    >
-                      ×
-                    </button>
+                      aria-label="在此处插入颜色"
+                      title="在此处插入颜色"
+                      onClick={() => addColor(index)}
+                    />
                   )}
-                </div>
+                  <div className="color-swatch" style={{ backgroundColor: color }}>
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => updateColorAt(index, e.target.value)}
+                    />
+                    {controls.envelope.colors.length > 1 && (
+                      <button
+                        className="swatch-remove"
+                        type="button"
+                        title="移除该颜色"
+                        onClick={() => removeColor(index)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </Fragment>
               ))}
               {controls.envelope.colors.length < 3 && (
                 <button
-                  className="swatch-add"
+                  className="swatch-insert"
                   type="button"
-                  title="添加渐变颜色"
-                  onClick={addColor}
-                >
-                  +
-                </button>
+                  aria-label="在末尾添加颜色"
+                  title="在末尾添加颜色"
+                  onClick={() => addColor()}
+                />
               )}
             </div>
             <button
@@ -412,25 +420,34 @@ function App() {
               </label>
 
               <label className="field">
-                <span className="field-label">高峰模式</span>
+                <span className="field-label">变换</span>
                 <div className="toggle-group">
                   <button
-                    className={`peak-toggle${controls.peak ? ' active' : ''}`}
+                    className={`peak-toggle${controls.iconTilt ? ' active' : ''}`}
                     type="button"
-                    aria-pressed={controls.peak}
-                    title="高峰模式（开启为错位攀登效果，关闭则对齐平铺）"
-                    onClick={() => updateControl('peak', !controls.peak)}
+                    aria-pressed={controls.iconTilt}
+                    title="图标倾斜（开启时前缀图标跟随字面旋转/斜切）"
+                    onClick={() => updateControl('iconTilt', !controls.iconTilt)}
                   >
-                    {controls.peak ? '错位攀登' : '对齐平铺'}
+                    {controls.iconTilt ? '图标倾斜' : '图标直立'}
                   </button>
                   <button
                     className={`peak-toggle${controls.tilt ? ' active' : ''}`}
                     type="button"
                     aria-pressed={controls.tilt}
-                    title="字符倾斜（开启应用字面固有的旋转/斜切，关闭则字形直立）"
+                    title="文本倾斜（开启应用字面固有的旋转/斜切，关闭则文字直立）"
                     onClick={() => updateControl('tilt', !controls.tilt)}
                   >
-                    {controls.tilt ? '字符倾斜' : '字形直立'}
+                    {controls.tilt ? '文本倾斜' : '文本直立'}
+                  </button>
+                  <button
+                    className={`peak-toggle${controls.peak ? ' active' : ''}`}
+                    type="button"
+                    aria-pressed={controls.peak}
+                    title="错位攀登（开启为高低错落效果，关闭则对齐平铺）"
+                    onClick={() => updateControl('peak', !controls.peak)}
+                  >
+                    {controls.peak ? '错位攀登' : '对齐平铺'}
                   </button>
                 </div>
               </label>
