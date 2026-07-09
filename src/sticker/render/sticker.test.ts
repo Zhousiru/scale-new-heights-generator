@@ -218,6 +218,18 @@ describe('createStickerLayout', () => {
     expect(new Set(heights)).toEqual(new Set([-16]))
   })
 
+  it('keeps English identifiers and technical tokens as one word', () => {
+    const layout = createStickerLayout('foo_bar-v2.0/api', {
+      fontSize: 220,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+
+    expect(layout.placements.map((p) => p.grapheme).join('')).toBe('foo_bar-v2.0/api')
+    expect(new Set(layout.placements.map((p) => p.baselineY))).toEqual(new Set([-16]))
+  })
+
   it('produces no height difference when alternatingOffset is zero (flat mode)', () => {
     const layout = createStickerLayout('scale new heights', {
       fontSize: 220,
@@ -374,6 +386,10 @@ describe('classifyGrapheme', () => {
     expect(classifyGrapheme('7')).toBe('word')
     expect(classifyGrapheme('é')).toBe('word')
     expect(classifyGrapheme('+')).toBe('word')
+    expect(classifyGrapheme('_')).toBe('word')
+    expect(classifyGrapheme('/')).toBe('word')
+    expect(classifyGrapheme('@')).toBe('word')
+    expect(classifyGrapheme('#')).toBe('word')
     expect(classifyGrapheme(' ')).toBe('space')
     expect(classifyGrapheme('，')).toBe('other')
   })

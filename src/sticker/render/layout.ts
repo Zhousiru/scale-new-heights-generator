@@ -29,8 +29,9 @@ export function getAlternatingOffset(index: number, amplitude: number): number {
 export type GraphemeKind = 'space' | 'cjk' | 'word' | 'other'
 
 const CJK_PATTERN =
-  /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\uff66-\uff9f]/u
-const WORD_PATTERN = /[0-9A-Za-z\u00c0-\u024f'’.+-]/u
+  /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/u
+const WESTERN_PATTERN = /\p{Script=Latin}|\p{Number}/u
+const WORD_SYMBOL_PATTERN = /['’._:+/@#&%-]/u
 // 图形类 Emoji（含 ZWJ 连字序列 / 变体选择符）。它们以接近正方形的彩色字形绘制，
 // 若斜切成平行四边形会产生尖角，描边膨胀会把这些尖角变成杂散“尖峰”；因此保持直立。
 // eslint-disable-next-line no-misleading-character-class
@@ -42,11 +43,13 @@ export function isEmojiGrapheme(grapheme: string): boolean {
 }
 
 // 对字素分类，决定它如何归入一个“攀登”单元。CJK 字符逐字攀登（行为不变），
-// 而连续的拉丁字母/数字合并为一个词单元，使词内每个字母共享同一高度。
+// 而连续的西文/数字/词内符号合并为一个词单元，使词内每个字符共享同一高度。
 export function classifyGrapheme(grapheme: string): GraphemeKind {
   if (/^\s+$/u.test(grapheme)) return 'space'
   if (CJK_PATTERN.test(grapheme)) return 'cjk'
-  if (WORD_PATTERN.test(grapheme)) return 'word'
+  if (WESTERN_PATTERN.test(grapheme) || WORD_SYMBOL_PATTERN.test(grapheme)) {
+    return 'word'
+  }
   return 'other'
 }
 

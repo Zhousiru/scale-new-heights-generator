@@ -108,10 +108,7 @@ export function StickerControlsPanel({
                   <option
                     key={preset.text}
                     value={preset.text}
-                    style={{
-                      color: preset.colors[preset.colors.length - 1],
-                      fontWeight: 600,
-                    }}
+                    style={{ color: preset.colors.at(-1) }}
                   >
                     {preset.label ?? preset.text}
                   </option>
