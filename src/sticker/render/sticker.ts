@@ -13,9 +13,11 @@ import {
   mergeBounds,
 } from './layout'
 import {
+  computeSquaredDistanceTransform,
   dilateMaskRound,
   erodeMaskRound,
   fillEnclosedRegions,
+  invertMask,
   subtractMask,
   thresholdAlphaMask,
 } from './mask'
@@ -32,7 +34,7 @@ import {
   createGradient,
   gradientExtentFromMask,
 } from './gradient'
-import { maskToCanvas, paintMask } from './paint'
+import { maskToCanvas, paintMask, createPaintBuffer } from './paint'
 import {
   configureTextContext,
   computeIconBox,
@@ -207,24 +209,46 @@ export async function renderSticker(
       renderControls.flavor,
       renderControls.envelope.outlineStrokeWidth,
     )
+
+    // ① DT 缓存复用：sourceMask 的 DT 复用于 dilateMaskRound + maskToCanvas(sourceMask)
+    const sourceMaskDT = computeSquaredDistanceTransform(sourceMask)
+    const sourceMaskInvertedDT = computeSquaredDistanceTransform(invertMask(sourceMask))
+
     const envelopeMask = fillEnclosedRegions(
-      dilateMaskRound(sourceMask, bandWidth),
+      dilateMaskRound(sourceMask, bandWidth, sourceMaskDT),
     )
+    // envelopeMask 的反转 DT 用于 erodeMaskRound
+    const envelopeMaskInvertedDT = computeSquaredDistanceTransform(invertMask(envelopeMask))
     const edgeMask = subtractMask(
       envelopeMask,
-      erodeMaskRound(envelopeMask, renderControls.envelope.edgeWidth),
+      erodeMaskRound(envelopeMask, renderControls.envelope.edgeWidth, envelopeMaskInvertedDT),
     )
-    const envelopeMaskCanvas = maskToCanvas(envelopeMask, ENVELOPE_ANTIALIAS)
-    const edgeMaskCanvas = maskToCanvas(edgeMask, OUTLINE_ANTIALIAS)
-    const glyphMaskCanvas = maskToCanvas(sourceMask, OUTLINE_ANTIALIAS)
+
+    // ① maskToCanvas 复用预计算 DT
+    const envelopeMaskDT = computeSquaredDistanceTransform(envelopeMask)
+    const envelopeMaskCanvas = maskToCanvas(
+      envelopeMask, ENVELOPE_ANTIALIAS, envelopeMaskDT, envelopeMaskInvertedDT,
+    )
+    const edgeMaskDT = computeSquaredDistanceTransform(edgeMask)
+    const edgeMaskInvertedDT = computeSquaredDistanceTransform(invertMask(edgeMask))
+    const edgeMaskCanvas = maskToCanvas(
+      edgeMask, OUTLINE_ANTIALIAS, edgeMaskDT, edgeMaskInvertedDT,
+    )
+    const glyphMaskCanvas = maskToCanvas(
+      sourceMask, OUTLINE_ANTIALIAS, sourceMaskDT, sourceMaskInvertedDT,
+    )
     const envelopeGradientExtent = gradientExtentFromMask(
       envelopeMask,
       renderControls.envelope.gradientAngle,
     )
 
+    // ③ 创建可复用的 paint buffer
+    const buffer = createPaintBuffer(workingWidth, workingHeight)
+
     // 彩色渐变主体。
     paintMask(outputContext, envelopeMaskCanvas, (context) =>
       paintFamilyGradient(context, gradientStops, envelopeGradientExtent),
+      1, 'source-over', buffer,
     )
     // 较深的边缘轮廓，用 multiply 混合使其读起来像阴影化的边框。
     paintMask(
@@ -238,6 +262,7 @@ export async function renderSticker(
         ),
       renderControls.envelope.edgeOpacity,
       'multiply',
+      buffer,
     )
     // 内阴影：将字形（含前缀图标）偏移并模糊后裁剪到包体内、以 multiply 混入，
     // 压暗字母正下方的主体。图标与文字同属白色前景，需一并投影以保持一致。
@@ -280,11 +305,13 @@ export async function renderSticker(
         },
         renderControls.shadow.opacity,
         'multiply',
+        buffer,
       )
     }
     // 顶层白色字形。
     paintMask(outputContext, glyphMaskCanvas, (context) =>
       paintSolid(context, '#ffffff'),
+      1, 'source-over', buffer,
     )
   } else {
     // 彩色字形直接由加深的同色系外层带包裹——没有白色描边。外扩部分就是加深后的颜色本身。
@@ -292,9 +319,21 @@ export async function renderSticker(
       renderControls.flavor,
       renderControls.envelope.outlineStrokeWidth,
     )
-    const deepMask = fillEnclosedRegions(dilateMaskRound(sourceMask, rimWidth))
-    const deepMaskCanvas = maskToCanvas(deepMask, ENVELOPE_ANTIALIAS)
-    const glyphMaskCanvas = maskToCanvas(sourceMask, OUTLINE_ANTIALIAS)
+
+    // ① DT 缓存复用
+    const sourceMaskDT = computeSquaredDistanceTransform(sourceMask)
+    const sourceMaskInvertedDT = computeSquaredDistanceTransform(invertMask(sourceMask))
+
+    const deepMask = fillEnclosedRegions(dilateMaskRound(sourceMask, rimWidth, sourceMaskDT))
+
+    const deepMaskDT = computeSquaredDistanceTransform(deepMask)
+    const deepMaskInvertedDT = computeSquaredDistanceTransform(invertMask(deepMask))
+    const deepMaskCanvas = maskToCanvas(
+      deepMask, ENVELOPE_ANTIALIAS, deepMaskDT, deepMaskInvertedDT,
+    )
+    const glyphMaskCanvas = maskToCanvas(
+      sourceMask, OUTLINE_ANTIALIAS, sourceMaskDT, sourceMaskInvertedDT,
+    )
     const deepGradientExtent = gradientExtentFromMask(
       deepMask,
       renderControls.envelope.gradientAngle,
@@ -307,13 +346,18 @@ export async function renderSticker(
       lighten(color, BYTE_FOREGROUND_LIGHTEN),
     )
 
+    // ③ 创建可复用的 paint buffer
+    const buffer = createPaintBuffer(workingWidth, workingHeight)
+
     // 配置色作为基准色；轮廓加深，文字只轻微提亮，保持清爽但不发白。
     paintMask(outputContext, deepMaskCanvas, (context) =>
       paintFamilyGradient(context, byteOutlineStops, deepGradientExtent),
+      1, 'source-over', buffer,
     )
     // 前景层：字形与图标使用轻微提亮后的基准色。
     paintMask(outputContext, glyphMaskCanvas, (context) =>
       paintFamilyGradient(context, byteForegroundStops, deepGradientExtent),
+      1, 'source-over', buffer,
     )
   }
 
