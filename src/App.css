@@ -1,24 +1,20 @@
 .app {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   max-width: 960px;
+  min-height: 100svh;
   margin: 0 auto;
-  padding: 24px 24px 32px;
-  gap: 20px;
+  padding: 24px;
+  gap: 24px;
+  align-items: stretch;
 }
 
 /* ── 双面板布局（并排，窄屏堆叠） ── */
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-
 @media (max-width: 720px) {
-  .layout {
+  .app {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
 }
 
@@ -33,22 +29,19 @@
   border: 1px solid var(--card-border);
   border-radius: 12px;
   background: var(--card-bg);
-  /* 控件卡片不超过视口高度；内部滚动，让预览列保持不动。 */
-  max-height: calc(100vh - 64px);
-  overflow-y: auto;
+  align-self: start;
 }
 
 .panel-preview {
   gap: 16px;
-  /* 让 GitHub 链接沉到面板底部 */
-  min-height: calc(100vh - 64px);
+  min-width: 0;
 }
 
 /* ── 高级设置（可折叠） ── */
 
 .advanced {
   border-top: 1px solid var(--card-border);
-  padding-top: 4px;
+  padding-top: 8px;
 }
 
 .advanced-summary {
@@ -101,6 +94,11 @@
   gap: 10px;
 }
 
+.toolbar-row .preset-cell {
+  width: 100%;
+  min-width: 0;
+}
+
 .toolbar-row .preset-select {
   width: 100%;
   min-width: 0;
@@ -111,6 +109,7 @@
 .text-input {
   width: 100%;
   min-height: 44px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
@@ -119,7 +118,7 @@
   outline: none;
   color: var(--text-strong);
   background: var(--surface);
-  resize: vertical;
+  resize: none;
   transition: border-color 0.15s, background 0.15s;
 }
 
@@ -149,6 +148,38 @@
   border-color: var(--border-strong);
 }
 
+/* 预设参数被改动后出现的重置按钮：绝对定位悬浮，避免挤占下拉宽度造成布局抖动。 */
+.preset-cell {
+  position: relative;
+}
+
+.preset-reset {
+  position: absolute;
+  top: 50%;
+  right: 26px;
+  transform: translateY(-50%);
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-strong);
+  background: var(--surface);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.preset-cell:hover .preset-reset,
+.preset-reset:focus-visible {
+  opacity: 1;
+}
+
+.preset-reset:hover {
+  border-color: var(--text-strong);
+}
+
 /* ── 样式切换 ── */
 
 .style-toggle {
@@ -156,6 +187,15 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
+}
+
+.style-field {
+  width: 100%;
+  align-items: flex-start;
+}
+
+.style-field .style-toggle {
+  flex: 1;
 }
 
 .style-option {
@@ -182,12 +222,7 @@
 }
 
 .style-preview {
-  display: block;
-  height: 40px;
   width: 100%;
-  max-width: 112px;
-  object-fit: contain;
-  pointer-events: none;
 }
 
 .style-label {
@@ -386,7 +421,9 @@
   white-space: nowrap;
 }
 
-/* 高级设置内的字段用 grid 对齐：标签列等宽 + 控件撑满 + 右侧数值列。 */
+/* 普通字段和高级设置共用标签列宽，避免上下控件的 label 起点不一致。 */
+.style-field,
+.icon-field,
 .advanced-body .field {
   display: grid;
   grid-template-columns: 68px 1fr auto;
@@ -488,6 +525,18 @@
   min-width: 100px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.style-option,
+.icon-btn,
+.swatch-insert,
+.swatch-remove,
+.peak-toggle,
+.field-slider input[type='range'],
+.export-btn,
+.github-link,
+.canvas-area {
+  user-select: none;
 }
 
 /* ── 角度旋钮 ── */

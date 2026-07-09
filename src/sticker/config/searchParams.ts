@@ -35,6 +35,7 @@ export function controlsToSearch(controls: StickerControls): StickerSearch {
   put('pk', controls.peak ? 1 : 0, d.peak ? 1 : 0)
   put('tl', controls.tilt ? 1 : 0, d.tilt ? 1 : 0)
   put('it', controls.iconTilt ? 1 : 0, d.iconTilt ? 1 : 0)
+  put('aa', controls.antialiasScale, d.antialiasScale)
 
   put('sx', controls.shadow.offsetX, d.shadow.offsetX)
   put('sy', controls.shadow.offsetY, d.shadow.offsetY)
@@ -71,6 +72,7 @@ export function searchToControls(search: StickerSearch): StickerControls {
     peak: bool(get('pk')),
     tilt: bool(get('tl')),
     iconTilt: bool(get('it')),
+    antialiasScale: num(get('aa')),
     shadow: {
       offsetX: num(get('sx')),
       offsetY: num(get('sy')),

@@ -6,7 +6,7 @@ import {
   stringifySearchWith,
 } from '@tanstack/react-router'
 import App from '../App'
-import { validateStickerSearch } from '../sticker/searchParams'
+import { validateStickerSearch } from '../sticker/config/searchParams'
 
 export const rootRoute = createRootRoute({
   validateSearch: validateStickerSearch,

@@ -44,6 +44,8 @@ export interface StickerControls {
   tilt: boolean
   /** 图标倾斜：开启时前缀图标跟随字面旋转/斜切。 */
   iconTilt: boolean
+  /** 内部超采样倍率，用于平滑斜线和斜切边缘。 */
+  antialiasScale: number
   shadow: StickerShadowControls
   envelope: StickerEnvelopeControls
   /** 裁剪结果四周的透明留白，按轴独立设置。 */
@@ -61,6 +63,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   peak: true,
   tilt: true,
   iconTilt: true,
+  antialiasScale: 1.5,
   shadow: {
     offsetX: 4,
     offsetY: 6,
@@ -133,6 +136,12 @@ export function normalizeStickerControls(value: unknown): StickerControls {
       typeof input.iconTilt === 'boolean'
         ? input.iconTilt
         : DEFAULT_STICKER_CONTROLS.iconTilt,
+    antialiasScale: clampNumber(
+      input.antialiasScale,
+      1,
+      5,
+      DEFAULT_STICKER_CONTROLS.antialiasScale,
+    ),
     shadow: {
       offsetX: clampNumber(
         shadow.offsetX,

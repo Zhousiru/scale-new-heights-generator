@@ -2,22 +2,27 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_STICKER_CONTROLS,
   normalizeStickerControls,
-} from './defaults'
+} from '../config/defaults'
 import {
   classifyGrapheme,
   createStickerLayout,
-  dilateMaskRound,
-  erodeMaskRound,
-  fillEnclosedRegions,
-  findOpaqueBounds,
   getAlternatingOffset,
   isEmojiGrapheme,
   measureSkewedGlyphBounds,
   splitGraphemes,
+} from './layout'
+import { fontSpec, usesFeatureFont } from './font'
+import {
+  dilateMaskRound,
+  erodeMaskRound,
+  fillEnclosedRegions,
+  findOpaqueBounds,
   subtractMask,
   thresholdAlphaMask,
-  type GlyphMeasurement,
-} from './renderSticker'
+} from './mask'
+import type {
+  GlyphMeasurement,
+} from './types'
 
 function createMeasurement(width: number, fontSize: number): GlyphMeasurement {
   return {
@@ -32,6 +37,26 @@ function createMeasurement(width: number, fontSize: number): GlyphMeasurement {
 describe('splitGraphemes', () => {
   it('keeps Chinese text segmented by grapheme', () => {
     expect(splitGraphemes('勇攀高峰')).toEqual(['勇', '攀', '高', '峰'])
+  })
+})
+
+describe('usesFeatureFont', () => {
+  it('uses feature fonts only for the intended scripts', () => {
+    expect(usesFeatureFont('snh', '高')).toBe(true)
+    expect(usesFeatureFont('snh', 'A')).toBe(false)
+    expect(usesFeatureFont('bs', '高')).toBe(true)
+    expect(usesFeatureFont('bs', 'A')).toBe(true)
+    expect(usesFeatureFont('bs', '1')).toBe(false)
+    expect(usesFeatureFont('bs', '🙂')).toBe(false)
+  })
+})
+
+describe('fontSpec', () => {
+  it('requests bold weight for feature and fallback glyphs', () => {
+    expect(fontSpec('snh', 64, '高')).toContain('normal bold 64px "DouyinSansBold"')
+    expect(fontSpec('snh', 64, 'A')).toContain('normal bold 64px "PingFang SC"')
+    expect(fontSpec('bs', 64, 'A')).toContain('normal bold 64px "YouSheBiaoTiHei"')
+    expect(fontSpec('bs', 64, '1')).toContain('normal bold 64px "PingFang SC"')
   })
 })
 
@@ -479,6 +504,7 @@ describe('normalizeStickerControls', () => {
   it('merges partial JSON with defaults and clamps values', () => {
     const normalized = normalizeStickerControls({
       text: '测试',
+      antialiasScale: 9,
       letterSpacing: -999,
       envelope: {
         edgeWidth: 99,
@@ -486,6 +512,7 @@ describe('normalizeStickerControls', () => {
     })
 
     expect(normalized.text).toBe('测试')
+    expect(normalized.antialiasScale).toBe(5)
     expect(normalized.letterSpacing).toBe(-40)
     expect(normalized.envelope.edgeWidth).toBe(12)
     expect(normalized.fontSize).toBe(DEFAULT_STICKER_CONTROLS.fontSize)

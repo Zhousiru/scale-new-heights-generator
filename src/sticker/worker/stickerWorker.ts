@@ -1,6 +1,6 @@
-import type { StickerControls } from './defaults'
-import { loadIconBitmap } from './iconLoader'
-import type { WorkerResponse } from './workerProtocol'
+import type { StickerControls } from '../config/defaults'
+import type { WorkerResponse } from '../config/workerProtocol'
+import { loadIconBitmap } from '../utils/iconLoader'
 
 export interface PreviewResult {
   bitmap: ImageBitmap

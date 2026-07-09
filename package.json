@@ -1,40 +1,62 @@
 {
   "name": "scale-new-heights-generator",
-  "private": true,
   "version": "0.2.0",
   "type": "module",
+  "description": "中文攀登体表情包生成器，支持浏览器 UI 与 Node 无头 PNG 渲染。",
+  "main": "./lib/sticker/index.mjs",
+  "module": "./lib/sticker/index.mjs",
+  "types": "./lib/sticker/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./lib/sticker/index.d.mts",
+      "import": "./lib/sticker/index.mjs"
+    },
+    "./core": {
+      "types": "./lib/sticker/core.d.mts",
+      "import": "./lib/sticker/core.mjs"
+    },
+    "./node": {
+      "types": "./lib/sticker/node.d.mts",
+      "import": "./lib/sticker/node.mjs"
+    }
+  },
+  "files": [
+    "lib",
+    "public/DouyinSansBold.woff2",
+    "public/YouSheBiaoTiHei.ttf",
+    "README.md"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "build": "pnpm run build:app && pnpm run build:package",
+    "build:app": "vite build",
+    "build:package": "rimraf lib && tsdown src/sticker/index.ts src/sticker/core.ts src/sticker/node.ts --out-dir lib/sticker --format esm --dts --platform node --target es2023 --tsconfig tsconfig.node.json --deps.never-bundle @napi-rs/canvas",
+    "lint": "oxlint src vite.config.ts --import-plugin --react-plugin --jsx-a11y-plugin --vitest-plugin --deny-warnings",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "pnpm run build:package"
   },
   "dependencies": {
-    "@iconify/react": "^6.0.2",
-    "@tanstack/react-router": "^1.170.17",
-    "colord": "^2.9.3",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "colord": "^2.9.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas": "^1.0.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@eslint/js": "^9.39.4",
-    "@rolldown/plugin-babel": "^0.2.1",
-    "@types/babel__core": "^7.20.5",
-    "@types/node": "^24.12.0",
-    "@types/react": "^19.2.14",
+    "@iconify/react": "^6.0.2",
+    "@tanstack/react-router": "^1.170.17",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.73.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rimraf": "^6.1.3",
+    "tsdown": "^0.22.4",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.57.0",
-    "vite": "^8.0.1",
-    "vitest": "3.2.4"
+    "vite": "^8.1.3",
+    "vitest": "^4.1.10"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.10.0"
 }

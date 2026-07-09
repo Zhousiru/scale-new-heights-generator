@@ -34,14 +34,14 @@ const PRESET_DEFAULTS: PresetDefaults = {
 // 只有跨明显色系（如绿→橙、青→紫）时才写入多个停靠点。
 export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
   字节范: [
-    { text: '始终创业', label: '🗓 始终创业', colors: ['#9f6', '#8fd'], icon: 'tabler:square-1-filled' },
-    { text: '多元兼容', label: '🪐 多元兼容', colors: ['#ef6cdf'], icon: 'tabler:planet', iconTilt: false },
-    { text: '坦诚清晰', label: '\u{1F4AC} 坦诚清晰', colors: ['#ff975c'], icon: 'mdi:message-text' },
-    { text: '求真务实', label: '\u{1F50D} 求真务实', colors: ['#69d1f2', '#c55be7'], icon: 'mdi:magnify', iconTilt: false },
+    { text: '始终创业', label: '🗓 始终创业', colors: ['#8d0', '#6da'], icon: 'mdi:numeric-1-box' },
+    { text: '多元兼容', label: '🪐 多元兼容', colors: ['#fae', '#d6d'], icon: 'tabler:planet', iconTilt: false },
+    { text: '坦诚清晰', label: '💬 坦诚清晰', colors: ['#ff975c'], icon: 'mdi:message-text' },
+    { text: '求真务实', label: '🔍 求真务实', colors: ['#69d1f2', '#c55be7'], icon: 'mdi:magnify', iconTilt: false },
     { text: '敢为极致', label: '✨ 敢为极致', colors: ['#fb609e'], icon: 'mdi:star-four-points', iconTilt: false },
     { text: '共同成长', label: '🌱 共同成长', colors: ['#73e8d7', '#14a38e'], icon: 'mdi:sprout' },
-    { text: '领导力', label: '\u{1F525} 领导力', colors: ['#ffb65c'], icon: 'mdi:torch' },
-    { text: '激发创造', label: '\u{1F4A1} 激发创造', colors: ['#65baf6'], icon: 'mdi:lightbulb-on' },
+    { text: '领导力', label: '🔥 领导力', colors: ['#ffb65c'], icon: 'mdi:torch' },
+    { text: '激发创造', label: '💡 激发创造', colors: ['#65baf6'], icon: 'mdi:lightbulb-on' },
     { text: '丰富生活', label: '🎵 丰富生活', colors: ['#68d9f2'], icon: 'mdi:music' },
   ],
   勇攀高峰: [
@@ -53,13 +53,13 @@ export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
     { text: '创新推动', colors: ['#3388dd', '#ccaa44'] },
   ],
   务实浪漫系列: [
-    { text: '做了≠做好了', label: '✅ 做了≠做好了', colors: ['#42e34d'], icon: 'mdi:check-bold' },
-    { text: '不断创新', label: '\u{1F4A1} 不断创新', colors: ['#02b0f1', '#02d294'], icon: 'mdi:head-lightbulb' },
-    { text: '敢想敢干', label: '🤘 敢想敢干', colors: ['#0fbfe3'], icon: 'mdi:hand-back-right' },
-    { text: '务实浪漫', label: '\u{1F4AB} 务实浪漫', colors: ['#7e40e3', '#2f62f1'], icon: 'mdi:star-shooting' },
-    { text: '梦想实现中', label: '🦋 梦想实现中', colors: ['#3a85f0'], icon: 'mdi:bird' },
-    { text: '快速行动', colors: ['#fe2191'] },
-    { text: '一起改变', label: '\u{1F465} 一起改变', colors: ['#fcaf03', '#f38121', '#f35e3b'], icon: 'mdi:account-multiple' },
+    { text: '做了≠做好了', label: '☑️ 做了≠做好了', colors: ['#42e34d'], icon: 'mdi:check-bold' },
+    { text: '不断创新', label: '💡 不断创新', colors: ['#02b0f1', '#02d294'], icon: 'mdi:head-lightbulb' },
+    { text: '敢想敢干', label: '✊ 敢想敢干', colors: ['#0fbfe3'], icon: 'mdi:hand-back-right' },
+    { text: '务实浪漫', label: '🪐 务实浪漫', colors: ['#7e40e3', '#2f62f1'], icon: 'mdi:star-shooting' },
+    { text: '梦想实现中', label: '⌛️ 梦想实现中', colors: ['#3a85f0'], icon: 'mdi:bird' },
+    { text: '快速行动', label: '🏃‍♂️ 快速行动', colors: ['#fe2191'] },
+    { text: '一起改变', label: '👥 一起改变', colors: ['#fcaf03', '#f38121', '#f35e3b'], icon: 'mdi:account-multiple' },
     { text: 'We Are ByteDancers', label: 'Ⓑ We Are ByteDancers', colors: ['#0080f1'], icon: 'mdi:alpha-b-circle', iconTilt: false },
   ],
   地震级创意: [

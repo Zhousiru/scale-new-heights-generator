@@ -16,10 +16,11 @@ describe('searchParams', () => {
       ...DEFAULT_STICKER_CONTROLS,
       text: '测试',
       flavor: 'bs',
+      antialiasScale: 5,
       envelope: { ...DEFAULT_STICKER_CONTROLS.envelope, colors: ['#abcdef'] },
     })
 
-    expect(search).toEqual({ t: '测试', fl: 'bs', gc: 'abcdef' })
+    expect(search).toEqual({ t: '测试', fl: 'bs', aa: '5', gc: 'abcdef' })
   })
 
   it('round-trips a customized control set', () => {
@@ -30,6 +31,7 @@ describe('searchParams', () => {
       icon: 'mdi:rocket',
       fontSize: 260,
       lineHeight: 1.4,
+      antialiasScale: 5,
       peak: false,
       iconTilt: false,
       envelope: {
