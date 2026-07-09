@@ -27,6 +27,45 @@ export type StickerFlavor = 'snh' | 'bs'
 
 export const STICKER_FLAVORS: StickerFlavor[] = ['snh', 'bs']
 
+// 渲染倍率的单一真源：默认值与合法区间都只在这里定义，
+// 渲染层（sticker.ts）与 Node 入口（node.ts）一律 import，禁止各自重写。
+export const ANTIALIAS_SCALE_MIN = 1
+export const ANTIALIAS_SCALE_MAX = 5
+export const DEFAULT_ANTIALIAS_SCALE = 1.5
+export const RENDER_SCALE_MIN = 1
+export const RENDER_SCALE_MAX = 3
+export const DEFAULT_RENDER_SCALE = 1
+
+export function normalizeAntialiasScale(value: unknown): number {
+  return normalizeScale(
+    value,
+    ANTIALIAS_SCALE_MIN,
+    ANTIALIAS_SCALE_MAX,
+    DEFAULT_ANTIALIAS_SCALE,
+  )
+}
+
+export function normalizeRenderScale(value: unknown): number {
+  return normalizeScale(
+    value,
+    RENDER_SCALE_MIN,
+    RENDER_SCALE_MAX,
+    DEFAULT_RENDER_SCALE,
+  )
+}
+
+function normalizeScale(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
+  const parsed = typeof value === 'string' ? Number(value.trim()) : value
+  return typeof parsed === 'number' && Number.isFinite(parsed)
+    ? Math.min(max, Math.max(min, parsed))
+    : fallback
+}
+
 export interface StickerControls {
   text: string
   /** 使用哪种渲染风味（字面 + 配色/描边模型）。 */
@@ -63,7 +102,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   peak: true,
   tilt: true,
   iconTilt: true,
-  antialiasScale: 1.5,
+  antialiasScale: DEFAULT_ANTIALIAS_SCALE,
   shadow: {
     offsetX: 4,
     offsetY: 6,
@@ -143,9 +182,9 @@ export function normalizeStickerControls(value: unknown): StickerControls {
         : DEFAULT_STICKER_CONTROLS.iconTilt,
     antialiasScale: clampNumber(
       input.antialiasScale,
-      1,
-      5,
-      DEFAULT_STICKER_CONTROLS.antialiasScale,
+      ANTIALIAS_SCALE_MIN,
+      ANTIALIAS_SCALE_MAX,
+      DEFAULT_ANTIALIAS_SCALE,
     ),
     shadow: {
       offsetX: clampNumber(

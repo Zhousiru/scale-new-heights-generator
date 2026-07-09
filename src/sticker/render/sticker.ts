@@ -1,4 +1,8 @@
-import type { StickerControls } from '../config/defaults'
+import {
+  normalizeAntialiasScale,
+  normalizeRenderScale,
+  type StickerControls,
+} from '../config/defaults'
 import { darken, lighten, resolveGradientStops } from '../utils/color'
 import {
   effectiveOutlineWidth,
@@ -10,6 +14,7 @@ import {
 } from './font'
 import {
   createStickerLayout,
+  isEmojiGrapheme,
   mergeBounds,
 } from './layout'
 import {
@@ -24,11 +29,9 @@ import {
 import {
   canvasToPngBlob,
   createCanvas,
-  cropCanvas,
+  cropResizePadCanvas,
   extractAlphaChannel,
   getContext,
-  padCanvas,
-  resizeCanvasByScale,
 } from './canvas'
 import {
   createGradient,
@@ -39,6 +42,7 @@ import {
   configureTextContext,
   computeIconBox,
   drawColorEmoji,
+  drawEmojiGlyphs,
   drawFilledGlyphs,
   drawIcon,
   isTextPlacement,
@@ -57,7 +61,6 @@ import {
 // 文字尺寸保持稳定，导出图片（以及预览的棋盘格背景）会真实反映描边厚度的变化。
 const EXPORT_TEXT_HEIGHT = 150
 const MAX_EXPORT_EDGE = 2048
-const DEFAULT_ANTIALIAS_SCALE = 3
 const ENVELOPE_ANTIALIAS = 1.1
 const OUTLINE_ANTIALIAS = 0.9
 const ALPHA_THRESHOLD = 16
@@ -139,20 +142,19 @@ export async function renderSticker(
   const originX = padding - contentBounds.minX
   const originY = padding - contentBounds.minY
 
-  const sourceMaskCanvas = createCanvas(workingWidth, workingHeight)
-  const sourceMaskContext = getContext(sourceMaskCanvas)
+  const maskCanvas = createCanvas(workingWidth, workingHeight)
+  const maskContext = getContext(maskCanvas)
   resetAndPrepareTextContext(
-    sourceMaskContext,
+    maskContext,
     renderControls.fontSize,
     renderControls.flavor,
   )
-  sourceMaskContext.fillStyle = '#ffffff'
-  // 蒙版只纳入文字字形与图标；Emoji 排除在外——它们随后以原生彩色单独绘制，
-  // 既保留真实配色，又不让其抗锯齿边缘被阈值化后的杂散点参与描边膨胀。
-  drawFilledGlyphs(sourceMaskContext, layout, originX, originY, isTextPlacement)
+  maskContext.fillStyle = '#ffffff'
+  // 前景蒙版只纳入非 Emoji 字形与图标，用于后续白字/渐变字重着色。
+  drawFilledGlyphs(maskContext, layout, originX, originY, isTextPlacement)
   if (iconBitmap && iconBox) {
     drawIcon(
-      sourceMaskContext,
+      maskContext,
       iconBitmap,
       iconBox,
       originX,
@@ -161,14 +163,39 @@ export async function renderSticker(
     )
   }
 
-  const sourceMask = thresholdAlphaMask(
+  const foregroundMask = thresholdAlphaMask(
     extractAlphaChannel(
-      sourceMaskContext.getImageData(0, 0, workingWidth, workingHeight).data,
+      maskContext.getImageData(0, 0, workingWidth, workingHeight).data,
     ),
     workingWidth,
     workingHeight,
     ALPHA_THRESHOLD,
   )
+
+  const hasEmoji = layout.placements.some((placement) =>
+    isEmojiGrapheme(placement.grapheme),
+  )
+  let shapeMask = foregroundMask
+  if (hasEmoji) {
+    // 形状蒙版在同一张画布上追加 Emoji，用于生成包体/描边；Emoji 只拿干净
+    // alpha 参与外轮廓，本体稍后仍以原生彩色顶层叠加。
+    drawEmojiGlyphs(
+      maskContext,
+      layout,
+      renderControls.fontSize,
+      renderControls.flavor,
+      originX,
+      originY,
+    )
+    shapeMask = thresholdAlphaMask(
+      extractAlphaChannel(
+        maskContext.getImageData(0, 0, workingWidth, workingHeight).data,
+      ),
+      workingWidth,
+      workingHeight,
+      ALPHA_THRESHOLD,
+    )
+  }
   // 两种展示字面使用不同的配色模型，分别对应各自的源表情包：
   //   • snh / 勇攀高峰 (抖音美好体)：白色字形置于彩色渐变包体内，带较深的边缘轮廓。
   //   • bs  / 字节范  (优设标题黑)：彩色渐变字形，直接由更深的同色系轮廓包裹（无白色描边）。
@@ -210,12 +237,15 @@ export async function renderSticker(
       renderControls.envelope.outlineStrokeWidth,
     )
 
-    // ① DT 缓存复用：sourceMask 的 DT 复用于 dilateMaskRound + maskToCanvas(sourceMask)
-    const sourceMaskDT = computeSquaredDistanceTransform(sourceMask)
-    const sourceMaskInvertedDT = computeSquaredDistanceTransform(invertMask(sourceMask))
+    // ① DT 缓存复用：shapeMask 的 DT 复用于 dilateMaskRound。
+    const shapeMaskDT = computeSquaredDistanceTransform(shapeMask)
+    const foregroundMaskDT = computeSquaredDistanceTransform(foregroundMask)
+    const foregroundMaskInvertedDT = computeSquaredDistanceTransform(
+      invertMask(foregroundMask),
+    )
 
     const envelopeMask = fillEnclosedRegions(
-      dilateMaskRound(sourceMask, bandWidth, sourceMaskDT),
+      dilateMaskRound(shapeMask, bandWidth, shapeMaskDT),
     )
     // envelopeMask 的反转 DT 用于 erodeMaskRound
     const envelopeMaskInvertedDT = computeSquaredDistanceTransform(invertMask(envelopeMask))
@@ -235,7 +265,7 @@ export async function renderSticker(
       edgeMask, OUTLINE_ANTIALIAS, edgeMaskDT, edgeMaskInvertedDT,
     )
     const glyphMaskCanvas = maskToCanvas(
-      sourceMask, OUTLINE_ANTIALIAS, sourceMaskDT, sourceMaskInvertedDT,
+      foregroundMask, OUTLINE_ANTIALIAS, foregroundMaskDT, foregroundMaskInvertedDT,
     )
     const envelopeGradientExtent = gradientExtentFromMask(
       envelopeMask,
@@ -285,23 +315,21 @@ export async function renderSticker(
             originY + renderControls.shadow.offsetY,
           )
           if (iconBitmap && iconBox) {
-            // 图标是白色位图，fillStyle 对 drawImage 无效；先把图标形状重着色为
-            // 阴影色（source-in），再作为剪影混入，才能与文字阴影一致可见。
-            const iconShadowCanvas = createCanvas(workingWidth, workingHeight)
-            const iconShadowContext = getContext(iconShadowCanvas)
+            // 图标 drawImage 不吃 fillStyle；直接把图标 alpha 画进当前 paint buffer，
+            // 再用 source-in 统一染成阴影色，避免额外分配一张全尺寸图标阴影画布。
             drawIcon(
-              iconShadowContext,
+              context,
               iconBitmap,
               iconBox,
               originX + renderControls.shadow.offsetX,
               originY + renderControls.shadow.offsetY,
               iconGlyphTransform,
             )
-            iconShadowContext.globalCompositeOperation = 'source-in'
-            iconShadowContext.fillStyle = renderControls.shadow.color
-            iconShadowContext.fillRect(0, 0, workingWidth, workingHeight)
-            context.drawImage(iconShadowCanvas, 0, 0)
           }
+          context.globalCompositeOperation = 'source-in'
+          context.filter = 'none'
+          context.fillStyle = renderControls.shadow.color
+          context.fillRect(0, 0, workingWidth, workingHeight)
         },
         renderControls.shadow.opacity,
         'multiply',
@@ -321,10 +349,13 @@ export async function renderSticker(
     )
 
     // ① DT 缓存复用
-    const sourceMaskDT = computeSquaredDistanceTransform(sourceMask)
-    const sourceMaskInvertedDT = computeSquaredDistanceTransform(invertMask(sourceMask))
+    const shapeMaskDT = computeSquaredDistanceTransform(shapeMask)
+    const foregroundMaskDT = computeSquaredDistanceTransform(foregroundMask)
+    const foregroundMaskInvertedDT = computeSquaredDistanceTransform(
+      invertMask(foregroundMask),
+    )
 
-    const deepMask = fillEnclosedRegions(dilateMaskRound(sourceMask, rimWidth, sourceMaskDT))
+    const deepMask = fillEnclosedRegions(dilateMaskRound(shapeMask, rimWidth, shapeMaskDT))
 
     const deepMaskDT = computeSquaredDistanceTransform(deepMask)
     const deepMaskInvertedDT = computeSquaredDistanceTransform(invertMask(deepMask))
@@ -332,7 +363,7 @@ export async function renderSticker(
       deepMask, ENVELOPE_ANTIALIAS, deepMaskDT, deepMaskInvertedDT,
     )
     const glyphMaskCanvas = maskToCanvas(
-      sourceMask, OUTLINE_ANTIALIAS, sourceMaskDT, sourceMaskInvertedDT,
+      foregroundMask, OUTLINE_ANTIALIAS, foregroundMaskDT, foregroundMaskInvertedDT,
     )
     const deepGradientExtent = gradientExtentFromMask(
       deepMask,
@@ -384,19 +415,15 @@ export async function renderSticker(
     )
   }
 
-  const croppedCanvas = cropCanvas(outputCanvas)
   // 以「文字内容高度」（不含描边）为稳定参照来缩放：描边越厚，裁剪画布相对内容越大，
   // 缩放后整体尺寸随之增大，从而在导出与预览棋盘格上真实反映描边厚度。
   const contentHeight = Math.max(1, contentBounds.maxY - contentBounds.minY)
-  const outputScale = normalizeOutputScale(options.outputScale)
+  const outputScale = normalizeRenderScale(options.outputScale)
   const exportScale = (EXPORT_TEXT_HEIGHT * outputScale) / contentHeight
-  const resizedCanvas = resizeCanvasByScale(
-    croppedCanvas,
+  const exportCanvas = cropResizePadCanvas(
+    outputCanvas,
     exportScale,
     options.maxOutputEdge ?? Math.round(MAX_EXPORT_EDGE * outputScale),
-  )
-  const exportCanvas = padCanvas(
-    resizedCanvas,
     controls.padding.x,
     controls.padding.y,
   )
@@ -408,18 +435,6 @@ export async function renderSticker(
     toBlob: () => canvasToPngBlob(exportCanvas),
     toBitmap: () => exportCanvas.transferToImageBitmap(),
   }
-}
-
-function normalizeOutputScale(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(3, Math.max(1, value))
-    : 1
-}
-
-function normalizeAntialiasScale(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(5, Math.max(1, value))
-    : DEFAULT_ANTIALIAS_SCALE
 }
 
 function scaleControlsForRasterization(

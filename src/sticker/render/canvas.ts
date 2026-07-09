@@ -50,6 +50,60 @@ export function cropCanvas(sourceCanvas: OffscreenCanvas): OffscreenCanvas {
   return croppedCanvas
 }
 
+export function cropResizePadCanvas(
+  sourceCanvas: OffscreenCanvas,
+  scale: number,
+  maxEdge: number,
+  paddingX: number,
+  paddingY: number,
+): OffscreenCanvas {
+  const sourceContext = getContext(sourceCanvas)
+  const imageData = sourceContext.getImageData(
+    0,
+    0,
+    sourceCanvas.width,
+    sourceCanvas.height,
+  )
+  const bounds = findOpaqueBounds(
+    extractAlphaChannel(imageData.data),
+    sourceCanvas.width,
+    sourceCanvas.height,
+  )
+
+  if (!bounds) {
+    throw new Error('Rendered canvas is empty.')
+  }
+
+  const cropX = bounds.left
+  const cropY = bounds.top
+  const cropWidth = bounds.right - bounds.left + 1
+  const cropHeight = bounds.bottom - bounds.top + 1
+  const scaledWidth = Math.max(1, Math.round(cropWidth * scale))
+  const scaledHeight = Math.max(1, Math.round(cropHeight * scale))
+  const longestEdge = Math.max(scaledWidth, scaledHeight)
+  const clampScale = longestEdge > maxEdge ? maxEdge / longestEdge : 1
+  const outputWidth = Math.max(1, Math.round(scaledWidth * clampScale))
+  const outputHeight = Math.max(1, Math.round(scaledHeight * clampScale))
+  const x = Math.max(0, Math.round(paddingX))
+  const y = Math.max(0, Math.round(paddingY))
+  const canvas = createCanvas(outputWidth + x * 2, outputHeight + y * 2)
+  const context = getContext(canvas)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
+  context.drawImage(
+    sourceCanvas,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    x,
+    y,
+    outputWidth,
+    outputHeight,
+  )
+  return canvas
+}
+
 // 在导出的表情包四周添加透明留白。X 与 Y 相互独立，因此默认可以让左右保持紧凑，
 // 同时给上下正常的间距。
 export function padCanvas(

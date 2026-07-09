@@ -122,15 +122,21 @@ export function StickerPreviewPanel({
         </p>
       )}
 
-      <a
-        className="github-link"
-        href="https://github.com/zhousiru/scale-new-heights-generator"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon icon="tabler:brand-github" width={16} height={16} />
-        GitHub
-      </a>
+      <div className="footer-links">
+        <a className="footer-link" href="http://go/^">
+          <Icon icon="tabler:mountain" width={16} height={16} />
+          内网文档
+        </a>
+        <a
+          className="footer-link"
+          href="https://github.com/zhousiru/scale-new-heights-generator"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon icon="tabler:brand-github" width={16} height={16} />
+          GitHub
+        </a>
+      </div>
     </section>
   )
 }

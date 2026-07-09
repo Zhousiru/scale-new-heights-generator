@@ -1,12 +1,15 @@
 import type { StickerFlavor } from '../config/defaults'
 import { fontSpec, usesFeatureFont } from './font'
 import { isEmojiGrapheme } from './layout'
+import { createCanvas, getContext } from './canvas'
 import type {
   GlyphPlacement,
   GlyphTransform,
   IconBox,
   StickerLayout,
 } from './types'
+
+const EMOJI_CORNER_CUT_RATIO = 0.02
 
 export function resetAndPrepareTextContext(
   context: OffscreenCanvasRenderingContext2D,
@@ -52,8 +55,27 @@ export function isTextPlacement(placement: GlyphPlacement): boolean {
   return !isEmojiGrapheme(placement.grapheme)
 }
 
-// 以 Emoji 原生彩色直接绘制到目标画布（不经蒙版重着色，从而保留其真实配色，
-// 也避免把其抗锯齿边缘阈值化后残留的杂散“角点”带进描边膨胀）。
+export function drawEmojiGlyphs(
+  context: OffscreenCanvasRenderingContext2D,
+  layout: StickerLayout,
+  fontSize: number,
+  flavor: StickerFlavor,
+  originX: number,
+  originY: number,
+): void {
+  const emojiPlacements = layout.placements.filter(
+    (placement) => !isTextPlacement(placement),
+  )
+  if (emojiPlacements.length === 0) return
+
+  for (const placement of emojiPlacements) {
+    // Apple Color Emoji 在右上/左下偶有孤立像素。逐字符隔离绘制后再裁角，
+    // 避免一次性绘制全部 emoji 时，某个字符的裁剪矩形擦到相邻字符。
+    drawSingleEmojiGlyph(context, layout, placement, fontSize, flavor, originX, originY)
+  }
+}
+
+// 以 Emoji 原生彩色直接绘制到目标画布（不经蒙版重着色，从而保留其真实配色）。
 export function drawColorEmoji(
   context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
@@ -62,22 +84,54 @@ export function drawColorEmoji(
   originX: number,
   originY: number,
 ): void {
-  const hasEmoji = layout.placements.some((placement) => !isTextPlacement(placement))
-  if (!hasEmoji) return
+  drawEmojiGlyphs(context, layout, fontSize, flavor, originX, originY)
+}
 
-  context.save()
-  configureTextContext(context, fontSize, flavor)
+function clearEmojiCornerArtifacts(
+  context: OffscreenCanvasRenderingContext2D,
+  placement: GlyphPlacement,
+  originX: number,
+  originY: number,
+): void {
+  const left = originX + placement.bounds.minX
+  const top = originY + placement.bounds.minY
+  const width = placement.bounds.maxX - placement.bounds.minX
+  const height = placement.bounds.maxY - placement.bounds.minY
+  const cutSize = Math.max(1, Math.round(Math.min(width, height) * EMOJI_CORNER_CUT_RATIO))
+
+  context.clearRect(left + width - cutSize, top, cutSize, cutSize)
+  context.clearRect(left, top + height - cutSize, cutSize, cutSize)
+}
+
+function drawSingleEmojiGlyph(
+  context: OffscreenCanvasRenderingContext2D,
+  layout: StickerLayout,
+  placement: GlyphPlacement,
+  fontSize: number,
+  flavor: StickerFlavor,
+  originX: number,
+  originY: number,
+): void {
+  const left = Math.floor(originX + placement.bounds.minX)
+  const top = Math.floor(originY + placement.bounds.minY)
+  const right = Math.ceil(originX + placement.bounds.maxX)
+  const bottom = Math.ceil(originY + placement.bounds.maxY)
+  const emojiCanvas = createCanvas(right - left, bottom - top)
+  const emojiContext = getContext(emojiCanvas)
+
+  resetAndPrepareTextContext(emojiContext, fontSize, flavor)
   drawPlacedGlyphs(
-    context,
+    emojiContext,
     layout,
-    originX,
-    originY,
+    originX - left,
+    originY - top,
     (current, grapheme) => {
       current.fillText(grapheme, 0, 0)
     },
-    (placement) => !isTextPlacement(placement),
+    (currentPlacement) => currentPlacement === placement,
   )
-  context.restore()
+  clearEmojiCornerArtifacts(emojiContext, placement, originX - left, originY - top)
+  context.drawImage(emojiCanvas, left, top)
 }
 
 function drawPlacedGlyphs(

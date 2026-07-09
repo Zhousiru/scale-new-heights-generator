@@ -4,6 +4,8 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import {
   STICKER_FLAVORS,
+  normalizeAntialiasScale,
+  normalizeRenderScale,
   normalizeStickerControls,
   type StickerControls,
   type StickerFlavor,
@@ -292,9 +294,8 @@ export class StickerGenerator {
           this.runtime,
           controls.envelope.colors[0] ?? '#ffffff',
         )
-    const outputScale = normalizeRenderScale(options.outputScale)
     const result = await renderSticker(controls, icon, {
-      outputScale,
+      outputScale: normalizeRenderScale(options.outputScale),
       antialiasScale: options.antialiasScale === undefined
         ? undefined
         : normalizeAntialiasScale(options.antialiasScale),
@@ -312,28 +313,3 @@ export class StickerGenerator {
   }
 }
 
-function normalizeRenderScale(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.min(3, Math.max(1, value))
-  }
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim())
-    if (Number.isFinite(parsed)) {
-      return Math.min(3, Math.max(1, parsed))
-    }
-  }
-  return 1
-}
-
-function normalizeAntialiasScale(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.min(5, Math.max(1, value))
-  }
-  if (typeof value === 'string') {
-    const parsed = Number(value.trim())
-    if (Number.isFinite(parsed)) {
-      return Math.min(5, Math.max(1, parsed))
-    }
-  }
-  return 3
-}

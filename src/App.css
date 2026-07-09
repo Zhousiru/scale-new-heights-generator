@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  max-width: 960px;
+  max-width: 1080px;
   height: 100vh;
   height: 100svh;
   margin: 0 auto;
@@ -541,7 +541,7 @@
 .peak-toggle,
 .field-slider input[type='range'],
 .export-btn,
-.github-link,
+.footer-link,
 .canvas-area {
   user-select: none;
 }
@@ -699,11 +699,17 @@
   line-height: 1.6;
 }
 
-/* ── GitHub 链接（预览面板底部） ── */
+/* ── 底部链接（预览面板底部） ── */
 
-.github-link {
+.footer-links {
   margin-top: auto;
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.footer-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -713,6 +719,6 @@
   transition: color 0.15s;
 }
 
-.github-link:hover {
+.footer-link:hover {
   color: var(--github-hover);
 }
