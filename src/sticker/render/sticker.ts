@@ -5,6 +5,7 @@ import {
   ensureStickerFontLoaded,
   fontGlyphTransform,
   iconGlyphTransformFrom,
+  isChineseDominant,
   measureGlyphWithCanvas,
 } from './font'
 import {
@@ -45,6 +46,7 @@ import {
   IDENTITY_GLYPH_TRANSFORM,
   type GradientExtent,
   type GlyphTransform,
+  type RenderIcon,
   type RenderResult,
 } from './types'
 
@@ -71,13 +73,17 @@ export interface RenderStickerOptions {
 
 export async function renderSticker(
   controls: StickerControls,
-  iconBitmap: ImageBitmap | null = null,
+  icon: RenderIcon | null = null,
   options: RenderStickerOptions = {},
 ): Promise<RenderResult> {
   const trimmedText = controls.text.trim()
   if (trimmedText.length === 0) {
     throw new Error('Text is required for sticker export.')
   }
+
+  const iconBitmap = icon?.bitmap ?? null
+  // 多色 / duotone 图标顶层原生叠加；单色图标折进蒙版由文字配色统一重着色。
+  const iconColored = icon?.colored ?? false
 
   await ensureStickerFontLoaded(controls.flavor)
 
@@ -95,6 +101,7 @@ export async function renderSticker(
     ? iconGlyphTransformFrom(baseTransform)
     : IDENTITY_GLYPH_TRANSFORM
 
+  const chineseDominant = isChineseDominant(trimmedText)
   const layout = createStickerLayout(trimmedText, {
     fontSize: renderControls.fontSize,
     letterSpacing: renderControls.letterSpacing,
@@ -103,7 +110,7 @@ export async function renderSticker(
     glyphTransform,
     alternatingOffset: renderControls.peak ? renderControls.alternatingOffset : 0,
     measureGlyph: (grapheme, fontSize) =>
-      measureGlyphWithCanvas(grapheme, fontSize, renderControls.flavor),
+      measureGlyphWithCanvas(grapheme, fontSize, renderControls.flavor, chineseDominant),
   })
 
   const iconBox = iconBitmap
@@ -232,7 +239,8 @@ export async function renderSticker(
       renderControls.envelope.edgeOpacity,
       'multiply',
     )
-    // 内阴影：将字形偏移并模糊后裁剪到包体内、以 multiply 混入，压暗字母正下方的主体。
+    // 内阴影：将字形（含前缀图标）偏移并模糊后裁剪到包体内、以 multiply 混入，
+    // 压暗字母正下方的主体。图标与文字同属白色前景，需一并投影以保持一致。
     if (renderControls.shadow.opacity > 0) {
       paintMask(
         outputContext,
@@ -251,6 +259,24 @@ export async function renderSticker(
             originX + renderControls.shadow.offsetX,
             originY + renderControls.shadow.offsetY,
           )
+          if (iconBitmap && iconBox) {
+            // 图标是白色位图，fillStyle 对 drawImage 无效；先把图标形状重着色为
+            // 阴影色（source-in），再作为剪影混入，才能与文字阴影一致可见。
+            const iconShadowCanvas = createCanvas(workingWidth, workingHeight)
+            const iconShadowContext = getContext(iconShadowCanvas)
+            drawIcon(
+              iconShadowContext,
+              iconBitmap,
+              iconBox,
+              originX + renderControls.shadow.offsetX,
+              originY + renderControls.shadow.offsetY,
+              iconGlyphTransform,
+            )
+            iconShadowContext.globalCompositeOperation = 'source-in'
+            iconShadowContext.fillStyle = renderControls.shadow.color
+            iconShadowContext.fillRect(0, 0, workingWidth, workingHeight)
+            context.drawImage(iconShadowCanvas, 0, 0)
+          }
         },
         renderControls.shadow.opacity,
         'multiply',
@@ -300,6 +326,19 @@ export async function renderSticker(
     originX,
     originY,
   )
+
+  // 多色 / duotone 图标：剪影已折进蒙版拿到外描边包围带，此处再以原生颜色叠加在
+  // 最上层，覆盖掉被统一重着色的白/渐变填充，保留图标自身配色。
+  if (iconColored && iconBitmap && iconBox) {
+    drawIcon(
+      outputContext,
+      iconBitmap,
+      iconBox,
+      originX,
+      originY,
+      iconGlyphTransform,
+    )
+  }
 
   const croppedCanvas = cropCanvas(outputCanvas)
   // 以「文字内容高度」（不含描边）为稳定参照来缩放：描边越厚，裁剪画布相对内容越大，

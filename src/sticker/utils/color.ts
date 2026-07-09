@@ -6,12 +6,12 @@ export function deriveDepthColor(base: string): string {
 }
 
 // 把用户配置的 1~3 个颜色规整为渐变停靠点：
-//   • 单色：补出同色系深色，形成 [浅, 深]；方向由角度旋钮控制。
+//   • 单色：补出同色系深色，形成 [深, 浅]；配合默认 180° 呈现「上深下浅」。
 //   • 双色/三色：原样返回。
 export function resolveGradientStops(colors: string[]): string[] {
   if (colors.length <= 1) {
     const base = colors[0] ?? '#76baf4'
-    return [base, deriveDepthColor(base)]
+    return [deriveDepthColor(base), base]
   }
   return colors
 }
@@ -66,7 +66,7 @@ function randomVividColor(
 
 function randomColorCount(random: () => number): 1 | 2 | 3 {
   const roll = random()
-  if (roll < 0.65) return 1
+  if (roll < 0.5) return 1
   if (roll < 0.9) return 2
   return 3
 }

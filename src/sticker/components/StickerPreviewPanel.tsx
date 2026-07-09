@@ -118,7 +118,7 @@ export function StickerPreviewPanel({
 
       {hasText && (
         <p className="usage-hint">
-          发送时复制图片粘贴到聊天框，发出后右键「添加为表情」，尺寸和形态才正常。
+          发出后右键「添加为表情」再发，尺寸才正常。
         </p>
       )}
 

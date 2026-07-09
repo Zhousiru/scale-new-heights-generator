@@ -36,8 +36,8 @@ describe('deriveDepthColor', () => {
 })
 
 describe('resolveGradientStops', () => {
-  it('expands a single color into a [light, dark] pair', () => {
-    const [light, dark] = resolveGradientStops(['#4c9acc'])
+  it('expands a single color into a [dark, light] pair', () => {
+    const [dark, light] = resolveGradientStops(['#4c9acc'])
     expect(light).toBe('#4c9acc')
     expect(colord(dark).toHsl().l).toBeLessThan(colord(light).toHsl().l)
   })
@@ -89,8 +89,8 @@ describe('randomVividColors', () => {
   })
 
   it('usually returns one color, sometimes two, and rarely three', () => {
-    expect(randomVividColors('#76baf4', () => 0.64)).toHaveLength(1)
-    expect(randomVividColors('#76baf4', () => 0.8)).toHaveLength(2)
+    expect(randomVividColors('#76baf4', () => 0.4)).toHaveLength(1)
+    expect(randomVividColors('#76baf4', () => 0.7)).toHaveLength(2)
     expect(randomVividColors('#76baf4', () => 0.95)).toHaveLength(3)
   })
 })

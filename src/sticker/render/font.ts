@@ -9,6 +9,7 @@ const FONT_STYLE = 'normal'
 const FONT_SAMPLE_TEXT = '勇攀高峰测试Aa0123456789'
 const HAN_PATTERN = /\p{Script=Han}/u
 const LATIN_PATTERN = /\p{Script=Latin}/u
+const DIGIT_PATTERN = /[0-9]/u
 
 interface FontDescriptor {
   family: string
@@ -65,20 +66,48 @@ export function effectiveOutlineWidth(flavor: StickerFlavor, width: number): num
   return width * FONT_REGISTRY[flavor].outlineScale
 }
 
-export function usesFeatureFont(flavor: StickerFlavor, grapheme?: string): boolean {
+// 判断整段文本是否以中文为主。用于 snh：中文占多数时，少量英文数字随抖音美好体
+// 一起排版更协调；中文很少（或纯西文）时，西文交给 Inter 以获得更现代的观感。
+export function isChineseDominant(text: string): boolean {
+  let han = 0
+  let latin = 0
+  for (const char of text) {
+    if (HAN_PATTERN.test(char)) han += 1
+    else if (LATIN_PATTERN.test(char) || DIGIT_PATTERN.test(char)) latin += 1
+  }
+  return han > 0 && han >= latin
+}
+
+export function usesFeatureFont(
+  flavor: StickerFlavor,
+  grapheme?: string,
+  chineseDominant = false,
+): boolean {
   if (!grapheme) return false
-  if (flavor === 'snh') return HAN_PATTERN.test(grapheme)
-  return HAN_PATTERN.test(grapheme) || LATIN_PATTERN.test(grapheme)
+  if (HAN_PATTERN.test(grapheme)) return true
+  // 优设标题黑字库含完整中英文与数字，西文与数字全部走特色字体。
+  if (flavor === 'bs') {
+    return LATIN_PATTERN.test(grapheme) || DIGIT_PATTERN.test(grapheme)
+  }
+  // 抖音美好体西文字形偏窄：仅在中文占多数时用它承载英文数字，
+  // 中文很少时西文落到 Inter fallback。
+  if (chineseDominant && (LATIN_PATTERN.test(grapheme) || DIGIT_PATTERN.test(grapheme))) {
+    return true
+  }
+  return false
 }
 
 export function fontSpec(
   flavor: StickerFlavor,
   fontSize: number,
   grapheme?: string,
+  chineseDominant = false,
 ): string {
   const { family, weight } = FONT_REGISTRY[flavor]
   const families = [
-    ...(usesFeatureFont(flavor, grapheme) ? [`"${family}"`] : []),
+    ...(usesFeatureFont(flavor, grapheme, chineseDominant) ? [`"${family}"`] : []),
+    // Inter 只含拉丁字形，作为西文 fallback 排在系统中文字体之前；中文自然落到 PingFang。
+    '"Inter"',
     '"PingFang SC"',
     '"Apple Color Emoji"',
     '"Apple Symbols"',
@@ -142,11 +171,12 @@ export function measureGlyphWithCanvas(
   grapheme: string,
   fontSize: number,
   flavor: StickerFlavor,
+  chineseDominant = false,
 ): GlyphMeasurement {
   const canvas = measurementCanvas ?? createCanvas(1, 1)
   measurementCanvas = canvas
   const context = getContext(canvas)
-  context.font = fontSpec(flavor, fontSize, grapheme)
+  context.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)
   context.textBaseline = 'alphabetic'
 
   const metrics = context.measureText(grapheme)

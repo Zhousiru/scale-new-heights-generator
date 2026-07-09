@@ -1,12 +1,15 @@
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   max-width: 960px;
-  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
   margin: 0 auto;
   padding: 24px;
   gap: 24px;
   align-items: stretch;
+  overflow: auto;
 }
 
 /* ── 双面板布局（并排，窄屏堆叠） ── */
@@ -14,7 +17,9 @@
 @media (max-width: 720px) {
   .app {
     grid-template-columns: 1fr;
-    min-height: auto;
+    grid-template-rows: auto;
+    height: auto;
+    overflow: initial;
   }
 }
 
@@ -25,11 +30,13 @@
 }
 
 .panel-controls {
+  min-height: 0;
+  overflow: auto;
   padding: 20px;
   border: 1px solid var(--card-border);
   border-radius: 12px;
   background: var(--card-bg);
-  align-self: start;
+  align-self: stretch;
 }
 
 .panel-preview {
@@ -659,8 +666,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: 38px;
-  padding: 0 24px;
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);

@@ -1,15 +1,40 @@
 // Iconify 图标是 SVG。`createImageBitmap` 无法在 Web Worker 内解码 SVG blob
 //（Chromium 只在主线程栅格化 SVG），所以贴纸 worker 无法自行拉取图标。本模块
-// 运行在主线程：它拉取一次 SVG（缓存为 Blob），并在每次渲染时栅格化出一张新的
+// 运行在主线程：它拉取一次 SVG（缓存为资源），并在每次渲染时栅格化出一张新的
 // ImageBitmap，以便把位图转移进 worker 而不破坏缓存。
 const ICON_RASTER_SIZE = 256
 
-const iconBlobCache = new Map<string, Promise<Blob | null>>()
+// 加载后的图标：位图 + 是否为「原生彩色」。
+//   • colored=false（单色图标）：位图只作剪影折进蒙版，随后由文字配色统一重着色。
+//   • colored=true（多色 / duotone）：剪影仍折进蒙版拿外描边包围带，但顶层以原生
+//     颜色叠加，保留其真实配色。
+export interface LoadedIcon {
+  bitmap: ImageBitmap
+  colored: boolean
+}
+
+interface IconResource {
+  blob: Blob
+  colored: boolean
+}
+
+const iconResourceCache = new Map<string, Promise<IconResource | null>>()
+
+// Phosphor 等库以 `-duotone` 后缀提供双色调图标（靠 currentColor + 两档透明度）。
+function isDuotoneIcon(iconId: string): boolean {
+  return /duotone/i.test(iconId)
+}
+
+// SVG 是否内嵌硬编码颜色（多色图标），而非仅用 currentColor。
+function svgHasHardcodedColor(svg: string): boolean {
+  return /(?:fill|stop-color)\s*=\s*["']\s*(?:#|rgb\(|hsl\()/i.test(svg)
+}
 
 // 把形如 `mdi:rocket` 或 `mdi-rocket` 的 Iconify id 解析成拉取 URL。
-// 单色图标以 color=#ffffff 请求，使其跟随白色文字填充；彩色图标忽略 color 参数、
-// 保留自身配色。
-export function iconIdToUrl(iconId: string): string | null {
+// 传入 color 时以该色请求（用于 duotone：让 currentColor 采用贴纸主色）；
+// 否则拉取图标原始配色——单色图标的颜色不影响蒙版（蒙版只看 alpha），
+// 多色图标则保留自身配色。
+export function iconIdToUrl(iconId: string, color?: string): string | null {
   const trimmed = iconId.trim()
   if (trimmed.length === 0) return null
 
@@ -21,18 +46,23 @@ export function iconIdToUrl(iconId: string): string | null {
   const name = trimmed.slice(splitAt + 1)
   if (!/^[a-z0-9-]+$/i.test(prefix) || !/^[a-z0-9-]+$/i.test(name)) return null
 
-  return (
-    `https://api.iconify.design/${prefix}/${name}.svg` +
-    `?height=${ICON_RASTER_SIZE}&color=%23ffffff`
-  )
+  let url = `https://api.iconify.design/${prefix}/${name}.svg?height=${ICON_RASTER_SIZE}`
+  if (color) url += `&color=${encodeURIComponent(color)}`
+  return url
 }
 
-function loadIconBlob(iconId: string): Promise<Blob | null> {
-  const cached = iconBlobCache.get(iconId)
+function loadIconResource(
+  iconId: string,
+  primaryColor: string,
+): Promise<IconResource | null> {
+  const duotone = isDuotoneIcon(iconId)
+  // duotone 依赖注入主色，缓存键需带上颜色；其余图标按 id 缓存即可。
+  const cacheKey = duotone ? `${iconId}|${primaryColor}` : iconId
+  const cached = iconResourceCache.get(cacheKey)
   if (cached) return cached
 
   const promise = (async () => {
-    const url = iconIdToUrl(iconId)
+    const url = iconIdToUrl(iconId, duotone ? primaryColor : undefined)
     if (!url) return null
 
     try {
@@ -41,24 +71,28 @@ function loadIconBlob(iconId: string): Promise<Blob | null> {
       const svg = await response.text()
       // Iconify 对未知图标会返回 "404" 文本。
       if (!svg.includes('<svg')) return null
-      return new Blob([svg], { type: 'image/svg+xml' })
+      const colored = duotone || svgHasHardcodedColor(svg)
+      return { blob: new Blob([svg], { type: 'image/svg+xml' }), colored }
     } catch {
       return null
     }
   })()
 
-  iconBlobCache.set(iconId, promise)
+  iconResourceCache.set(cacheKey, promise)
   return promise
 }
 
-export async function loadIconBitmap(iconId: string): Promise<ImageBitmap | null> {
-  const blob = await loadIconBlob(iconId)
-  if (!blob) return null
+export async function loadIconBitmap(
+  iconId: string,
+  primaryColor = '#ffffff',
+): Promise<LoadedIcon | null> {
+  const resource = await loadIconResource(iconId, primaryColor)
+  if (!resource) return null
 
   // `createImageBitmap(svgBlob)` 在各引擎间表现不稳定，因此用可移植的方式栅格化
   // SVG：通过 <img> 解码，按图标尺寸（保持宽高比）绘制到 canvas 上，再把该 canvas
   // 快照为位图。
-  const objectUrl = URL.createObjectURL(blob)
+  const objectUrl = URL.createObjectURL(resource.blob)
   try {
     const image = new Image()
     image.src = objectUrl
@@ -77,7 +111,8 @@ export async function loadIconBitmap(iconId: string): Promise<ImageBitmap | null
     if (!context) return null
     context.drawImage(image, 0, 0, width, height)
 
-    return await createImageBitmap(canvas)
+    const bitmap = await createImageBitmap(canvas)
+    return { bitmap, colored: resource.colored }
   } catch {
     return null
   } finally {

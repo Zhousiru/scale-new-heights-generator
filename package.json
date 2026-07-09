@@ -37,7 +37,8 @@
     "prepack": "pnpm run build:package"
   },
   "dependencies": {
-    "colord": "^2.9.3"
+    "colord": "^2.9.3",
+    "inter-ui": "^4.1.1"
   },
   "optionalDependencies": {
     "@napi-rs/canvas": "^1.0.2"
