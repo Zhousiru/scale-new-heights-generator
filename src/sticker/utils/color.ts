@@ -1,0 +1,109 @@
+import { colord } from 'colord'
+
+// 单色渐变的另一端：同色相、深一点的配套色。轻微降饱和，避免高饱和浅色变深后刺眼。
+export function deriveDepthColor(base: string): string {
+  return colord(base).darken(0.12).desaturate(0.05).toHex()
+}
+
+// 把用户配置的 1~3 个颜色规整为渐变停靠点：
+//   • 单色：补出同色系深色，形成 [浅, 深]；方向由角度旋钮控制。
+//   • 双色/三色：原样返回。
+export function resolveGradientStops(colors: string[]): string[] {
+  if (colors.length <= 1) {
+    const base = colors[0] ?? '#76baf4'
+    return [base, deriveDepthColor(base)]
+  }
+  return colors
+}
+
+export function colorInputValue(color: string): string {
+  const parsed = colord(color)
+  return parsed.isValid() ? parsed.toHex() : '#000000'
+}
+
+// 通道级压暗：按 (1-amount) 缩放 RGB。用于 snh 边缘轮廓加深。
+export function darken(color: string, amount: number): string {
+  const { r, g, b } = colord(color).toRgb()
+  const scale = (channel: number) =>
+    Math.max(0, Math.min(255, Math.round(channel * (1 - amount))))
+  return `rgb(${scale(r)}, ${scale(g)}, ${scale(b)})`
+}
+
+// 通道级提亮：按 amount 把 RGB 向白色插值。用于 bs 前景（轮廓色提亮成浅色）。
+export function lighten(color: string, amount: number): string {
+  const { r, g, b } = colord(color).toRgb()
+  const scale = (channel: number) =>
+    Math.max(0, Math.min(255, Math.round(channel + (255 - channel) * amount)))
+  return `rgb(${scale(r)}, ${scale(g)}, ${scale(b)})`
+}
+
+function hueDistance(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360
+  return Math.min(diff, 360 - diff)
+}
+
+// 直接随机色相；尽量避开与当前色过近，避免连续点击几乎没变化。
+function pickAwayHue(base: string, random: () => number): number {
+  const { h } = colord(base).toHsl()
+  let hue = random() * 360
+  for (let attempt = 0; attempt < 3 && hueDistance(hue, h) <= 28; attempt += 1) {
+    hue = random() * 360
+  }
+  return hue
+}
+
+function randomVividColor(
+  base: string,
+  random: () => number = Math.random,
+): string {
+  const hue = pickAwayHue(base, random)
+  return colord({
+    h: ((hue % 360) + 360) % 360,
+    s: 72 + random() * 18,
+    l: 56 + random() * 10,
+  }).toHex()
+}
+
+function randomColorCount(random: () => number): 1 | 2 | 3 {
+  const roll = random()
+  if (roll < 0.65) return 1
+  if (roll < 0.9) return 2
+  return 3
+}
+
+// 勇攀高峰：默认模式，随机 1~3 个鲜亮颜色；1 个最多，3 个最少。
+export function randomVividColors(
+  base: string,
+  random: () => number = Math.random,
+): string[] {
+  const colors: string[] = []
+  const count = randomColorCount(random)
+  let seed = base
+
+  for (let index = 0; index < count; index += 1) {
+    const color = randomVividColor(seed, random)
+    colors.push(color)
+    seed = color
+  }
+
+  return colors
+}
+
+// 字节范：一对同色系基准色；渲染时再分别派生深轮廓和浅前景。
+export function randomGradientPair(
+  base: string,
+  random: () => number = Math.random,
+): [string, string] {
+  const hue = pickAwayHue(base, random)
+  const hueOffset = (random() < 0.5 ? -1 : 1) * (16 + random() * 18)
+  const saturation = 96 + random() * 16
+
+  const make = (offset: number, lightness: number) =>
+    colord({
+      h: ((hue + offset) % 360 + 360) % 360,
+      s: saturation,
+      l: lightness,
+    }).toHex()
+
+  return [make(0, 56 + random() * 16), make(hueOffset, 56 + random() * 16)]
+}
