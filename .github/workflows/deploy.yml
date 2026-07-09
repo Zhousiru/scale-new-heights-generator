@@ -32,7 +32,7 @@ jobs:
       - name: Build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
-        run: pnpm build
+        run: pnpm build:app
 
       - uses: actions/upload-pages-artifact@v3
         with:
