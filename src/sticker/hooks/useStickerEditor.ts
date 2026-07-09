@@ -13,6 +13,7 @@ import {
 } from '../worker/stickerWorker'
 import {
   DEFAULT_STICKER_CONTROLS,
+  defaultGradientAngle,
   type StickerControls,
   type StickerEnvelopeControls,
   type StickerPaddingControls,
@@ -154,12 +155,12 @@ export function useStickerEditor() {
             colors: randomGradientPair(
               c.envelope.colors[0] ?? '#76baf4',
             ),
-            gradientAngle: 90,
+            gradientAngle: defaultGradientAngle(c.icon),
           }
         : {
             ...c.envelope,
             colors: randomVividColors(c.envelope.colors[0] ?? '#76baf4'),
-            gradientAngle: 0,
+            gradientAngle: defaultGradientAngle(c.icon),
           },
     }))
   }
@@ -241,13 +242,16 @@ export function useStickerEditor() {
     if (!hasText) return
     try {
       const blob = await exportStickerBlob(controls)
+      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+        throw new Error('clipboard-unavailable')
+      }
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob }),
       ])
       flashCopied('image')
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '复制图片失败。'
-      setPreviewError(message)
+    } catch {
+      // iframe / 权限策略 / 无焦点等场景下剪贴板写入会被拒绝，引导用户手动复制。
+      setPreviewError('无法直接复制（当前环境限制剪贴板）。请在预览图上右键选择「复制图片」。')
     }
   }
 

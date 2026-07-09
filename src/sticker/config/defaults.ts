@@ -86,6 +86,11 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   },
 }
 
+// 默认渐变角度：有前缀图标时用 90°（横向，图标与文字并排），无图标时用 180°（纵向，上深下浅）。
+export function defaultGradientAngle(icon: string): number {
+  return icon.trim().length > 0 ? 90 : 180
+}
+
 export function normalizeStickerControls(value: unknown): StickerControls {
   const input = isRecord(value) ? value : {}
   const shadow = isRecord(input.shadow) ? input.shadow : {}

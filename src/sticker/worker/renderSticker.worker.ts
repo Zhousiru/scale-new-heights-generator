@@ -1,11 +1,13 @@
 import { renderSticker } from '../render/sticker'
 import type { WorkerRequest, WorkerResponse } from '../config/workerProtocol'
+import { ensureInterFontLoaded } from './interFont'
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
-  const { type, id, controls, iconBitmap } = e.data
+  const { type, id, controls, icon } = e.data
 
   try {
-    const result = await renderSticker(controls, iconBitmap, {
+    await ensureInterFontLoaded().catch(() => undefined)
+    const result = await renderSticker(controls, icon, {
       antialiasScale: controls.antialiasScale,
     })
 

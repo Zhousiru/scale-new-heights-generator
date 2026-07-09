@@ -1,4 +1,5 @@
 import type { StickerFlavor } from '../config/defaults'
+import { isChineseDominant } from './font'
 import {
   IDENTITY_GLYPH_TRANSFORM,
   type Bounds,
@@ -8,8 +9,9 @@ import {
   type StickerLayout,
 } from './types'
 
-// 词与词之间使用的空格步进占比。粗体展示字体的默认空格字形较宽，因此收紧词间距。
-const SPACE_ADVANCE_SCALE = 0.35
+// 词与词之间空格步进占空格自身宽度的比例。取 1 让空格保持字体的自然宽度，
+// 避免西文单词粘连（此前 0.35 在 Inter 下会挤没空格）。
+const SPACE_ADVANCE_SCALE = 1
 
 export function splitGraphemes(text: string): string[] {
   if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
@@ -136,6 +138,7 @@ export function createStickerLayout(
     letterSpacing: options.letterSpacing,
     fontSize: options.fontSize,
     flavor: options.flavor ?? 'snh',
+    chineseDominant: isChineseDominant(text),
     glyphTransform,
   }
 }

@@ -1,4 +1,4 @@
-import type { StickerFlavor } from './defaults'
+import { defaultGradientAngle, type StickerFlavor } from './defaults'
 
 interface StickerPresetSeed {
   text: string
@@ -46,11 +46,11 @@ export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
   ],
   勇攀高峰: [
     { text: '勇攀高峰', colors: ['#5c95e5'] },
-    { text: '高峰不常有', colors: ['#a8d8ff'] },
+    { text: '高峰不常有', colors: ['#08e', '#9cf'] },
     { text: '高度优先', colors: ['#e69a35'] },
     { text: '重点突破', colors: ['#eb5328'] },
     { text: '聚焦', colors: ['#3179e2'] },
-    { text: '创新推动', colors: ['#3388dd', '#ccaa44'] },
+    { text: '创新推动', colors: ['#ccaa44', '#3388dd'] },
   ],
   务实浪漫系列: [
     { text: '做了≠做好了', label: '☑️ 做了≠做好了', colors: ['#42e34d'], icon: 'mdi:check-bold' },
@@ -73,20 +73,24 @@ export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
 export type StickerPresetGroup = keyof typeof STICKER_PRESETS
 
 const PRESET_GROUP_DEFAULTS: Record<string, Partial<PresetDefaults>> = {
-  字节范: { flavor: 'bs', gradientAngle: 90 },
-  勇攀高峰: { gradientAngle: 0 },
-  务实浪漫系列: { gradientAngle: 90 },
-  地震级创意: { gradientAngle: 180 },
+  字节范: { flavor: 'bs' },
 }
 
+// 渐变角度默认由「是否有图标」决定（有图标 90° 横向、无图标 180° 纵向）；
+// 预设仅在个别需要时用显式 gradientAngle 覆盖。
 export const STICKER_PRESET_LIST: StickerPreset[] = Object.entries(
   STICKER_PRESETS,
 ).flatMap(([group, presets]) => {
   const groupDefaults = PRESET_GROUP_DEFAULTS[group as StickerPresetGroup]
-  return presets.map((preset) => ({
-    ...PRESET_DEFAULTS,
-    ...groupDefaults,
-    ...preset,
-    label: preset.label ?? preset.text,
-  }))
+  return presets.map((preset) => {
+    const icon = preset.icon ?? groupDefaults?.icon ?? PRESET_DEFAULTS.icon
+    return {
+      ...PRESET_DEFAULTS,
+      gradientAngle: defaultGradientAngle(icon),
+      ...groupDefaults,
+      ...preset,
+      icon,
+      label: preset.label ?? preset.text,
+    }
+  })
 })

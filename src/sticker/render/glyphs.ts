@@ -96,7 +96,12 @@ function drawPlacedGlyphs(
   for (const placement of layout.placements) {
     if (filter && !filter(placement)) continue
     context.save()
-    context.font = fontSpec(layout.flavor, layout.fontSize, placement.grapheme)
+    context.font = fontSpec(
+      layout.flavor,
+      layout.fontSize,
+      placement.grapheme,
+      layout.chineseDominant,
+    )
     // 锚定在字形的基线左端；下面每一步整形都以此为中心。
     context.translate(originX + placement.x, originY + placement.baselineY)
     if (placement.skew) {
@@ -110,7 +115,11 @@ function drawPlacedGlyphs(
       if (rotationRad !== 0) {
         context.rotate(-rotationRad)
       }
-      const horizontalSkewDeg = usesFeatureFont(layout.flavor, placement.grapheme)
+      const horizontalSkewDeg = usesFeatureFont(
+        layout.flavor,
+        placement.grapheme,
+        layout.chineseDominant,
+      )
         ? skewDeg[0]
         : 0
       const horizontalSkewTangent = Math.tan(

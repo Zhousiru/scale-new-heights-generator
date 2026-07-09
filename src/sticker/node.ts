@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import {
   STICKER_FLAVORS,
@@ -10,6 +11,7 @@ import {
 import { canvasToPngBytes } from './render/canvas'
 import { renderSticker } from './render/sticker'
 import { setCanvasRuntime, type CanvasRuntime } from './render/runtime'
+import type { RenderIcon } from './render/types'
 import { iconIdToUrl } from './utils/iconLoader'
 
 type DeepPartial<T> = {
@@ -40,6 +42,7 @@ interface NapiCanvasModule {
 export interface NodeStickerFontFiles {
   snh?: string
   bs?: string
+  inter?: string
   appleColorEmoji?: string
   appleSymbols?: string
   notoColorEmoji?: string
@@ -153,6 +156,15 @@ function resolveOptionalBundledFontFile(fileName: string): string {
   return ''
 }
 
+function resolveInterFontFile(): string {
+  try {
+    const require = createRequire(import.meta.url)
+    return require.resolve('inter-ui/web-latin/Inter-Bold-subset.woff2')
+  } catch {
+    return ''
+  }
+}
+
 function registerStickerFontsWithRuntime(
   runtime: StickerGeneratorRuntime,
   fontFiles: NodeStickerFontFiles = {},
@@ -171,6 +183,16 @@ function registerStickerFontsWithRuntime(
       throw new Error(`注册字体失败：${fontPath}`)
     }
     registeredFontPaths.add(fontPath)
+  }
+
+  // 西文 fallback：Inter（拉丁子集）。缺失时静默跳过，退回系统 sans-serif。
+  const interPath = fontFiles.inter ?? resolveInterFontFile()
+  if (interPath && !registeredFontPaths.has(interPath) && !runtime.hasFont?.('Inter')) {
+    if (runtime.registerFont(interPath, 'Inter')) {
+      registeredFontPaths.add(interPath)
+    } else {
+      console.warn('[sticker] fallback 字体注册失败：Inter')
+    }
   }
 
   for (const descriptor of FALLBACK_FONT_DESCRIPTORS) {
@@ -207,8 +229,10 @@ export async function registerStickerFonts(
 async function loadNodeIconImage(
   iconId: string,
   runtime: StickerGeneratorRuntime,
-): Promise<ImageBitmap | null> {
-  const url = iconIdToUrl(iconId)
+  primaryColor: string,
+): Promise<RenderIcon | null> {
+  const duotone = /duotone/i.test(iconId)
+  const url = iconIdToUrl(iconId, duotone ? primaryColor : undefined)
   if (!url) return null
   if (!runtime.loadImage) {
     throw new Error(
@@ -221,7 +245,10 @@ async function loadNodeIconImage(
   const svg = await response.text()
   if (!svg.includes('<svg')) return null
 
-  return await runtime.loadImage(Buffer.from(svg))
+  const colored =
+    duotone || /(?:fill|stop-color)\s*=\s*["']\s*(?:#|rgb\(|hsl\()/i.test(svg)
+  const bitmap = await runtime.loadImage(Buffer.from(svg))
+  return { bitmap, colored }
 }
 
 export async function renderStickerToPngBytes(
@@ -257,12 +284,16 @@ export class StickerGenerator {
     this.registerFonts(options.fontFiles)
 
     const controls = normalizeRenderInput(input)
-    const iconBitmap =
+    const icon =
       options.loadIcon === false
         ? null
-        : await loadNodeIconImage(controls.icon, this.runtime)
+        : await loadNodeIconImage(
+          controls.icon,
+          this.runtime,
+          controls.envelope.colors[0] ?? '#ffffff',
+        )
     const outputScale = normalizeRenderScale(options.outputScale)
-    const result = await renderSticker(controls, iconBitmap, {
+    const result = await renderSticker(controls, icon, {
       outputScale,
       antialiasScale: options.antialiasScale === undefined
         ? undefined

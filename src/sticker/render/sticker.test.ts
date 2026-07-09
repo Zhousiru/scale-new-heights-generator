@@ -43,20 +43,32 @@ describe('splitGraphemes', () => {
 describe('usesFeatureFont', () => {
   it('uses feature fonts only for the intended scripts', () => {
     expect(usesFeatureFont('snh', '高')).toBe(true)
-    expect(usesFeatureFont('snh', 'A')).toBe(false)
+    // snh 西文/数字仅在中文占多数时随特色字体排版。
+    expect(usesFeatureFont('snh', 'A', true)).toBe(true)
+    expect(usesFeatureFont('snh', '1', true)).toBe(true)
+    expect(usesFeatureFont('snh', 'A', false)).toBe(false)
+    expect(usesFeatureFont('snh', '1', false)).toBe(false)
+    // bs 中英文与数字全部走优设标题黑。
     expect(usesFeatureFont('bs', '高')).toBe(true)
     expect(usesFeatureFont('bs', 'A')).toBe(true)
-    expect(usesFeatureFont('bs', '1')).toBe(false)
+    expect(usesFeatureFont('bs', '1')).toBe(true)
     expect(usesFeatureFont('bs', '🙂')).toBe(false)
+    expect(usesFeatureFont('snh', '🙂', true)).toBe(false)
   })
 })
 
 describe('fontSpec', () => {
   it('requests bold weight for feature and fallback glyphs', () => {
     expect(fontSpec('snh', 64, '高')).toContain('normal bold 64px "DouyinSansBold"')
-    expect(fontSpec('snh', 64, 'A')).toContain('normal bold 64px "PingFang SC"')
+    expect(fontSpec('snh', 64, 'A', true)).toContain('normal bold 64px "DouyinSansBold"')
+    expect(fontSpec('snh', 64, 'A', false)).toContain('normal bold 64px "Inter", "PingFang SC"')
+    expect(fontSpec('snh', 64, '🙂', true)).toContain('normal bold 64px "Inter", "PingFang SC"')
     expect(fontSpec('bs', 64, 'A')).toContain('normal bold 64px "YouSheBiaoTiHei"')
-    expect(fontSpec('bs', 64, '1')).toContain('normal bold 64px "PingFang SC"')
+    expect(fontSpec('bs', 64, '1')).toContain('normal bold 64px "YouSheBiaoTiHei"')
+  })
+
+  it('offers Inter as the Latin fallback before system fonts', () => {
+    expect(fontSpec('bs', 64, 'A')).toContain('"YouSheBiaoTiHei", "Inter", "PingFang SC"')
   })
 })
 

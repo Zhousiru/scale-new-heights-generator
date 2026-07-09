@@ -17,6 +17,11 @@ let worker: Worker | null = null
 let nextId = 0
 const pending = new Map<number, PendingRequest>()
 
+// duotone 图标注入贴纸主色（首个配色）；其余图标忽略该参数。
+function iconPrimaryColor(controls: StickerControls): string {
+  return controls.envelope.colors[0] ?? '#ffffff'
+}
+
 function getWorker(): Worker {
   if (!worker) {
     worker = new Worker(
@@ -46,10 +51,10 @@ export function renderStickerPreview(controls: StickerControls): Promise<Preview
   const w = getWorker()
   return new Promise<PreviewResult>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: never) => void, reject })
-    void loadIconBitmap(controls.icon).then((iconBitmap) => {
+    void loadIconBitmap(controls.icon, iconPrimaryColor(controls)).then((icon) => {
       w.postMessage(
-        { type: 'render', id, controls, iconBitmap },
-        { transfer: iconBitmap ? [iconBitmap] : [] },
+        { type: 'render', id, controls, icon },
+        { transfer: icon ? [icon.bitmap] : [] },
       )
     })
   })
@@ -60,10 +65,10 @@ export function exportStickerBlob(controls: StickerControls): Promise<Blob> {
   const w = getWorker()
   return new Promise<Blob>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: never) => void, reject })
-    void loadIconBitmap(controls.icon).then((iconBitmap) => {
+    void loadIconBitmap(controls.icon, iconPrimaryColor(controls)).then((icon) => {
       w.postMessage(
-        { type: 'export', id, controls, iconBitmap },
-        { transfer: iconBitmap ? [iconBitmap] : [] },
+        { type: 'export', id, controls, icon },
+        { transfer: icon ? [icon.bitmap] : [] },
       )
     })
   })

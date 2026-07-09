@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { AngleKnob } from './AngleKnob'
 import {
   type StickerControls,
@@ -60,7 +60,8 @@ export function StickerControlsPanel({
   removeColor,
   applyPresetText,
 }: StickerControlsPanelProps) {
-  const activePreset = STICKER_PRESET_LIST.find((p) => p.text === controls.text)
+  const [selectedPresetText, setSelectedPresetText] = useState('')
+  const activePreset = STICKER_PRESET_LIST.find((p) => p.text === selectedPresetText)
   const presetDirty =
     activePreset !== undefined &&
     (controls.flavor !== activePreset.flavor ||
@@ -92,8 +93,11 @@ export function StickerControlsPanel({
         <div className="preset-cell">
           <select
             className="preset-select"
-            value={activePreset ? activePreset.text : ''}
-            onChange={(e) => applyPresetText(e.target.value)}
+            value={selectedPresetText}
+            onChange={(e) => {
+              setSelectedPresetText(e.target.value)
+              applyPresetText(e.target.value)
+            }}
           >
             <option value="" disabled>
               选择预设文案…
@@ -120,7 +124,7 @@ export function StickerControlsPanel({
               className="preset-reset"
               type="button"
               title="重置为预设初始参数"
-              onClick={() => applyPresetText(controls.text)}
+              onClick={() => applyPresetText(activePreset.text)}
             >
               重置
             </button>

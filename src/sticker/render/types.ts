@@ -52,6 +52,8 @@ export interface StickerLayout {
   letterSpacing: number
   fontSize: number
   flavor: StickerFlavor
+  /** 整段是否以中文为主，决定 snh 下西文数字是否随特色字体排版。 */
+  chineseDominant: boolean
   /** 绘制时应用于文字字形的每字体整形参数。 */
   glyphTransform: GlyphTransform
 }
@@ -77,6 +79,15 @@ export interface OpaqueBounds {
 export interface IconBox extends Bounds {
   drawWidth: number
   drawHeight: number
+}
+
+// 传入渲染的前缀图标。
+//   • colored=false：单色图标，只作剪影折进蒙版、随文字配色统一重着色。
+//   • colored=true：多色 / duotone 图标，剪影仍折进蒙版拿外描边包围带，
+//     但顶层以原生颜色叠加，保留其真实配色。
+export interface RenderIcon {
+  bitmap: ImageBitmap
+  colored: boolean
 }
 
 export interface RenderResult {
