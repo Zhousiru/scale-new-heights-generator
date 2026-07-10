@@ -160,14 +160,14 @@ export async function renderSticker(
         ctx.strokeText(grapheme, 0, 0)
         ctx.fillText(grapheme, 0, 0)
       }, isTextPlacement)
+      // emoji for non-cached lineWidths still needs shape contribution
+      if (layout.placements.some((p) => isEmojiGrapheme(p.grapheme))) {
+        drawEmojiGlyphs(context, layout, renderControls.fontSize, renderControls.flavor, ox, oy)
+      }
     }
     // draw icon (if present, non-colored icons participate in outline)
     if (iconBitmap && iconBox) {
       drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
-    }
-    // draw emoji glyphs for shape contribution
-    if (layout.placements.some((p) => isEmojiGrapheme(p.grapheme))) {
-      drawEmojiGlyphs(context, layout, renderControls.fontSize, renderControls.flavor, ox, oy)
     }
   }
 

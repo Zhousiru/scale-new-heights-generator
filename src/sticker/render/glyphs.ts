@@ -130,6 +130,8 @@ export function renderGlyphTile(
 /**
  * Build a cache of pre-rendered glyph tiles for all unique graphemes in the layout.
  * Returns separate maps for stroke+fill and fill-only tiles.
+ * Emoji glyphs get stroke tiles via pixel-level dilation (strokeText doesn't work
+ * on bitmap color emoji fonts).
  */
 export function buildGlyphTileCache(
   layout: StickerLayout,
@@ -141,19 +143,31 @@ export function buildGlyphTileCache(
 
   for (const placement of layout.placements) {
     const { grapheme, skew } = placement
-    if (isEmojiGrapheme(grapheme)) continue
 
-    // Stroke tile (for envelope layer)
-    if (!strokeTiles.has(grapheme)) {
-      strokeTiles.set(grapheme, renderGlyphTile(
-        grapheme, fontSize, strokeLineWidth, flavor, chineseDominant, glyphTransform, skew,
-      ))
-    }
-    // Fill tile (for shadow + glyph layers)
-    if (!fillTiles.has(grapheme)) {
-      fillTiles.set(grapheme, renderGlyphTile(
-        grapheme, fontSize, 0, flavor, chineseDominant, glyphTransform, skew,
-      ))
+    if (isEmojiGrapheme(grapheme)) {
+      // Emoji: stroke tile via fill + pixel dilation; fill tile via plain fill
+      if (!strokeTiles.has(grapheme)) {
+        strokeTiles.set(grapheme, renderEmojiStrokeTile(
+          grapheme, fontSize, strokeLineWidth, flavor, chineseDominant, layout,
+        ))
+      }
+      if (!fillTiles.has(grapheme)) {
+        fillTiles.set(grapheme, renderEmojiFillTile(
+          grapheme, fontSize, flavor, chineseDominant, layout,
+        ))
+      }
+    } else {
+      // Text glyph: stroke tile via strokeText; fill tile via fillText
+      if (!strokeTiles.has(grapheme)) {
+        strokeTiles.set(grapheme, renderGlyphTile(
+          grapheme, fontSize, strokeLineWidth, flavor, chineseDominant, glyphTransform, skew,
+        ))
+      }
+      if (!fillTiles.has(grapheme)) {
+        fillTiles.set(grapheme, renderGlyphTile(
+          grapheme, fontSize, 0, flavor, chineseDominant, glyphTransform, skew,
+        ))
+      }
     }
   }
 
@@ -161,7 +175,134 @@ export function buildGlyphTileCache(
 }
 
 /**
- * Draw all text glyphs using pre-rendered tiles (drawImage blit).
+ * Render an emoji glyph as a white fill tile (no dilation).
+ */
+function renderEmojiFillTile(
+  grapheme: string,
+  fontSize: number,
+  flavor: StickerFlavor,
+  chineseDominant: boolean,
+  layout: StickerLayout,
+): GlyphTile {
+  const placement = layout.placements.find((p) => p.grapheme === grapheme)!
+  const bounds = placement.bounds
+  const padding = 4
+  const tileWidth = Math.ceil(bounds.maxX - bounds.minX + padding * 2)
+  const tileHeight = Math.ceil(bounds.maxY - bounds.minY + padding * 2)
+
+  const canvas = createRuntimeCanvas(tileWidth, tileHeight)
+  const ctx = getContext(canvas)
+  ctx.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#ffffff'
+  // Draw at the correct position within the tile
+  const drawX = placement.x - bounds.minX + padding
+  const drawY = placement.baselineY - bounds.minY + padding
+  ctx.fillText(grapheme, drawX, drawY)
+
+  return {
+    canvas,
+    offsetX: bounds.minX - placement.x - padding,
+    offsetY: bounds.minY - placement.baselineY - padding,
+  }
+}
+
+/**
+ * Render an emoji stroke tile by first drawing its fill shape, then dilating
+ * outward by strokeLineWidth/2 using BFS pixel expansion.
+ * This works for bitmap emoji fonts where strokeText has no effect.
+ */
+function renderEmojiStrokeTile(
+  grapheme: string,
+  fontSize: number,
+  strokeLineWidth: number,
+  flavor: StickerFlavor,
+  chineseDominant: boolean,
+  layout: StickerLayout,
+): GlyphTile {
+  const placement = layout.placements.find((p) => p.grapheme === grapheme)!
+  const bounds = placement.bounds
+  const dilateRadius = Math.ceil(strokeLineWidth / 2)
+  const padding = dilateRadius + 4
+  const tileWidth = Math.ceil(bounds.maxX - bounds.minX + padding * 2)
+  const tileHeight = Math.ceil(bounds.maxY - bounds.minY + padding * 2)
+
+  const canvas = createRuntimeCanvas(tileWidth, tileHeight)
+  const ctx = getContext(canvas)
+  ctx.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#ffffff'
+  const drawX = placement.x - bounds.minX + padding
+  const drawY = placement.baselineY - bounds.minY + padding
+  ctx.fillText(grapheme, drawX, drawY)
+
+  // Dilate outward using BFS from opaque pixels
+  dilateCanvasOutward(canvas, dilateRadius)
+
+  return {
+    canvas,
+    offsetX: bounds.minX - placement.x - padding,
+    offsetY: bounds.minY - placement.baselineY - padding,
+  }
+}
+
+/**
+ * Dilate (expand) opaque regions outward by `radius` pixels.
+ * BFS from all opaque pixels into transparent neighbors.
+ */
+function dilateCanvasOutward(canvas: OffscreenCanvas, radius: number): void {
+  if (radius <= 0) return
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const total = width * height
+
+  const dist = new Uint16Array(total)
+  dist.fill(65535)
+  const queue = new Int32Array(total)
+  let qHead = 0
+  let qTail = 0
+
+  // Seed: all opaque pixels get distance 0
+  for (let i = 0; i < total; i++) {
+    if (data[i * 4 + 3] > 16) {
+      dist[i] = 0
+      queue[qTail++] = i
+    }
+  }
+
+  // BFS expansion
+  const intRadius = Math.ceil(radius)
+  while (qHead < qTail) {
+    const i = queue[qHead++]
+    const d = dist[i] + 1
+    if (d > intRadius) continue
+    const x = i % width
+    const y = (i - x) / width
+    if (x > 0 && dist[i - 1] > d) { dist[i - 1] = d; queue[qTail++] = i - 1 }
+    if (x < width - 1 && dist[i + 1] > d) { dist[i + 1] = d; queue[qTail++] = i + 1 }
+    if (y > 0 && dist[i - width] > d) { dist[i - width] = d; queue[qTail++] = i - width }
+    if (y < height - 1 && dist[i + width] > d) { dist[i + width] = d; queue[qTail++] = i + width }
+  }
+
+  // Fill dilated pixels
+  for (let i = 0; i < total; i++) {
+    if (dist[i] > 0 && dist[i] <= intRadius) {
+      const off = i * 4
+      data[off] = 255
+      data[off + 1] = 255
+      data[off + 2] = 255
+      data[off + 3] = 255
+    }
+  }
+  ctx.putImageData(imageData, 0, 0)
+}
+
+/**
+ * Draw all glyphs (text + emoji) using pre-rendered tiles (drawImage blit).
  * Much faster than per-glyph strokeText/fillText on web.
  */
 export function drawGlyphsFromTiles(
@@ -172,7 +313,6 @@ export function drawGlyphsFromTiles(
   originY: number,
 ): void {
   for (const placement of layout.placements) {
-    if (isEmojiGrapheme(placement.grapheme)) continue
     const tile = tiles.get(placement.grapheme)
     if (!tile) continue
     context.drawImage(
