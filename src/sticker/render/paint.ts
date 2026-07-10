@@ -193,6 +193,59 @@ export function fillEnclosedRegionsCanvas(canvas: OffscreenCanvas): void {
 }
 
 /**
+ * Erode (shrink) an opaque shape inward by `radius` pixels.
+ * Uses BFS from boundary pixels (transparent → opaque transition).
+ * Only pixels within `radius` distance from the boundary are cleared.
+ * Complexity: O(W×H) — no EDT needed.
+ */
+export function erodeCanvasInward(canvas: OffscreenCanvas, radius: number): void {
+  if (radius <= 0) return
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const total = width * height
+
+  // BFS from all transparent pixels, expand layer by layer up to radius depth.
+  const dist = new Uint16Array(total)
+  dist.fill(65535)
+  const queue = new Int32Array(total)
+  let qHead = 0
+  let qTail = 0
+
+  for (let i = 0; i < total; i++) {
+    if (data[i * 4 + 3] <= 16) {
+      dist[i] = 0
+      queue[qTail++] = i
+    }
+  }
+
+  const intRadius = Math.ceil(radius)
+  while (qHead < qTail) {
+    const i = queue[qHead++]
+    const d = dist[i] + 1
+    if (d > intRadius) continue
+    const x = i % width
+    const y = (i - x) / width
+    if (x > 0 && dist[i - 1] > d) { dist[i - 1] = d; queue[qTail++] = i - 1 }
+    if (x < width - 1 && dist[i + 1] > d) { dist[i + 1] = d; queue[qTail++] = i + 1 }
+    if (y > 0 && dist[i - width] > d) { dist[i - width] = d; queue[qTail++] = i - width }
+    if (y < height - 1 && dist[i + width] > d) { dist[i + width] = d; queue[qTail++] = i + width }
+  }
+
+  let modified = false
+  for (let i = 0; i < total; i++) {
+    if (dist[i] <= intRadius && data[i * 4 + 3] > 16) {
+      data[i * 4 + 3] = 0
+      modified = true
+    }
+  }
+  if (modified) {
+    ctx.putImageData(imageData, 0, 0)
+  }
+}
+
+/**
  * Compute gradient extent from a canvas's alpha channel (replaces gradientExtentFromMask
  * when we no longer have a BinaryMask).
  */

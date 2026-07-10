@@ -23,7 +23,7 @@ import {
 import {
   createGradient,
 } from './gradient'
-import { fillEnclosedRegionsCanvas, gradientExtentFromCanvas } from './paint'
+import { erodeCanvasInward, fillEnclosedRegionsCanvas, gradientExtentFromCanvas } from './paint'
 import { createRuntimeCanvas } from './runtime'
 import {
   configureTextContext,
@@ -187,13 +187,17 @@ export async function renderSticker(
       renderControls.envelope.outlineStrokeWidth,
     )
 
-    // Layer 1: Envelope — dilated outline filled with gradient
-    const envelopeCanvas = createSolidShapeCanvas(bandWidth * 2)
-    const envelopeCtx = getContext(envelopeCanvas)
+    // Build the solid white envelope shape once — reused by all layers
+    const envelopeWhiteCanvas = createSolidShapeCanvas(bandWidth * 2)
     const envelopeGradientExtent = gradientExtentFromCanvas(
-      envelopeCanvas,
+      envelopeWhiteCanvas,
       renderControls.envelope.gradientAngle,
     )
+
+    // Layer 1: Envelope — dilated outline filled with gradient
+    const envelopeCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+    const envelopeCtx = getContext(envelopeCanvas)
+    envelopeCtx.drawImage(envelopeWhiteCanvas, 0, 0)
     // Color with gradient via source-in compositing
     envelopeCtx.globalCompositeOperation = 'source-in'
     envelopeCtx.fillStyle = createGradient(
@@ -205,15 +209,17 @@ export async function renderSticker(
 
     // Layer 2: Edge band — darkened ring between outer and inner boundary
     if (renderControls.envelope.edgeWidth > 0 && renderControls.envelope.edgeOpacity > 0) {
-      const edgeCanvas = createSolidShapeCanvas(bandWidth * 2)
+      const edgeCanvas = createRuntimeCanvas(workingWidth, workingHeight)
       const edgeCtx = getContext(edgeCanvas)
-      // Build inner boundary on a SEPARATE canvas (also needs fillEnclosedRegions)
-      const innerCanvas = createSolidShapeCanvas(
-        Math.max(0, (bandWidth - renderControls.envelope.edgeWidth) * 2),
-      )
-      // Subtract inner from outer to leave only the edge ring
+      edgeCtx.drawImage(envelopeWhiteCanvas, 0, 0)
+      // Erode inward by edgeWidth to get the inner boundary
+      const erodedCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+      const erodedCtx = getContext(erodedCanvas)
+      erodedCtx.drawImage(envelopeWhiteCanvas, 0, 0)
+      erodeCanvasInward(erodedCanvas, renderControls.envelope.edgeWidth)
+      // edge = envelope - eroded (subtract inner from outer)
       edgeCtx.globalCompositeOperation = 'destination-out'
-      edgeCtx.drawImage(innerCanvas, 0, 0)
+      edgeCtx.drawImage(erodedCanvas, 0, 0)
       // Color the edge ring with darkened gradient
       edgeCtx.globalCompositeOperation = 'source-in'
       edgeCtx.fillStyle = createGradient(
@@ -255,10 +261,9 @@ export async function renderSticker(
       shadowCtx.filter = 'none'
       shadowCtx.fillStyle = renderControls.shadow.color
       shadowCtx.fillRect(0, 0, workingWidth, workingHeight)
-      // Clip shadow to the envelope shape
-      const clipCanvas = createSolidShapeCanvas(bandWidth * 2)
+      // Clip shadow to the envelope shape (reuse envelopeWhiteCanvas)
       shadowCtx.globalCompositeOperation = 'destination-in'
-      shadowCtx.drawImage(clipCanvas, 0, 0)
+      shadowCtx.drawImage(envelopeWhiteCanvas, 0, 0)
       // Composite shadow onto output
       outputContext.save()
       outputContext.globalAlpha = renderControls.shadow.opacity
