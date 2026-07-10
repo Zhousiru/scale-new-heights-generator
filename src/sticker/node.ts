@@ -4,7 +4,6 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import {
   STICKER_FLAVORS,
-  normalizeAntialiasScale,
   normalizeRenderScale,
   normalizeStickerControls,
   type StickerControls,
@@ -301,7 +300,7 @@ export class StickerGenerator {
       outputScale: normalizeRenderScale(options.outputScale),
       antialiasScale: options.antialiasScale === undefined
         ? undefined
-        : normalizeAntialiasScale(options.antialiasScale),
+        : numberOption(options.antialiasScale),
       maxOutputEdge: options.maxOutputEdge,
     })
     return await runtimeCanvasToPngBytes(result.canvas)
@@ -314,4 +313,11 @@ export class StickerGenerator {
     const bytes = await this.renderPngBytes(input, options)
     return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   }
+}
+
+function numberOption(value: unknown): number | undefined {
+  const parsed = typeof value === 'string' ? Number(value.trim()) : value
+  return typeof parsed === 'number' && Number.isFinite(parsed)
+    ? parsed
+    : undefined
 }

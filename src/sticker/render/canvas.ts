@@ -1,6 +1,9 @@
 import { findOpaqueBounds } from './mask'
 import { createRuntimeCanvas } from './runtime'
 import type { OpaqueBounds } from './types'
+import { getContext } from '../../shared/render/canvas'
+
+export { getContext }
 
 export function extractAlphaChannel(rgba: Uint8ClampedArray): Uint8ClampedArray {
   const alpha = new Uint8ClampedArray(rgba.length / 4)
@@ -101,16 +104,4 @@ function mergeOpaqueBounds(
     right: Math.max(opaqueBounds.right, clampedMinimum.right),
     bottom: Math.max(opaqueBounds.bottom, clampedMinimum.bottom),
   }
-}
-
-export function getContext(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
-  const context = canvas.getContext('2d', {
-    willReadFrequently: true,
-  })
-
-  if (!context) {
-    throw new Error('2D canvas context is unavailable.')
-  }
-
-  return context
 }

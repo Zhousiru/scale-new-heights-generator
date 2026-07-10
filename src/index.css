@@ -1,60 +1,72 @@
 :root {
-  /* 文本 */
-  --text-strong: #1a1a1a;
-  --text-muted: #888;
-  --text-soft: #999;
-  --text-faint: #b0b0b0;
-  /* 表面与边框 */
-  --bg: #fff;
-  --card-bg: #fcfcfc;
-  --card-border: #f0f0f0;
-  --surface: #fff;
-  --surface-hover: #fafafa;
-  --border: #e8e8e8;
-  --border-strong: #bbb;
-  --border-stronger: #ccc;
-  /* 强调色 */
-  --accent: #0582ff;
-  --accent-soft: rgba(5, 130, 255, 0.25);
-  --on-accent: #fff;
-  /* 预览与状态 */
-  --checker: #e6e6e6;
-  --canvas-bg: #fff;
-  --error: #c00;
-  --github: #ccc;
-  --github-hover: #999;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: #3179e2;
+  --primary-foreground: #ffffff;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: #5c95e5;
+  --radius: 0.625rem;
+  --font-sans: InterVariable, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
 
-  --ui-font: -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --text-strong: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --text-soft: var(--muted-foreground);
+  --text-faint: oklch(0.708 0 0);
+  --bg: var(--background);
+  --card-bg: var(--card);
+  --card-border: var(--border);
+  --surface: var(--background);
+  --surface-hover: var(--accent);
+  --border-strong: var(--ring);
+  --border-stronger: var(--ring);
+  --accent-soft: color-mix(in oklab, var(--ring) 24%, transparent);
+  --on-accent: var(--primary-foreground);
+  --control-active-border: color-mix(in oklab, var(--primary) 36%, var(--border));
+  --control-active-bg: color-mix(in oklab, var(--primary) 7%, var(--background));
+  --control-active-hover-bg: color-mix(in oklab, var(--primary) 10%, var(--background));
+  --checker: oklch(0.922 0 0);
+  --canvas-bg: var(--muted);
+  --error: var(--destructive);
+  --github: var(--muted-foreground);
+  --github-hover: var(--foreground);
 
-  color: var(--text-strong);
-  font: 14px/1.5 var(--ui-font);
+  color: var(--foreground);
+  font: 0.875rem/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
   color-scheme: light dark;
 }
 
-/* 跟随系统深色模式 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --text-strong: #f0f0f2;
-    --text-muted: #9a9a9f;
-    --text-soft: #86868b;
-    --text-faint: #6a6a70;
-    --bg: #1a1a1c;
-    --card-bg: #232326;
-    --card-border: #313135;
-    --surface: #2a2a2e;
-    --surface-hover: #33333a;
-    --border: #3a3a40;
-    --border-strong: #55555c;
-    --border-stronger: #66666e;
-    --accent: #3b9dff;
-    --accent-soft: rgba(59, 157, 255, 0.3);
-    --on-accent: #fff;
-    --checker: #3a3a3f;
-    --canvas-bg: #202024;
-    --error: #ff6b6b;
-    --github: #55555c;
-    --github-hover: #9a9a9f;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --popover: oklch(0.205 0 0);
+    --primary: #76baf4;
+    --primary-foreground: #082033;
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: #76baf4;
+    --checker: oklch(1 0 0 / 12%);
   }
 }
 
@@ -66,15 +78,16 @@ html,
 body,
 #root {
   margin: 0;
-  padding: 0;
+  min-block-size: 100%;
 }
 
 body {
-  background: var(--bg);
+  background: var(--muted);
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -82,14 +95,4 @@ h1,
 h2,
 p {
   margin: 0;
-}
-
-h1 {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-h2 {
-  font-size: 13px;
-  font-weight: 600;
 }

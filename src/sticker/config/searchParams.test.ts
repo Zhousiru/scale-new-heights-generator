@@ -32,6 +32,8 @@ describe('searchParams', () => {
       fontSize: 260,
       lineHeight: 1.4,
       antialiasScale: 5,
+      flash: true,
+      flashStops: 1,
       peak: false,
       iconTilt: false,
       envelope: {

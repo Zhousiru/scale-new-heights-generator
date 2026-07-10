@@ -1,5 +1,4 @@
 import {
-  normalizeAntialiasScale,
   normalizeRenderScale,
   type StickerControls,
 } from '../config/defaults'
@@ -92,9 +91,7 @@ export async function renderSticker(
 
   await ensureStickerFontLoaded(controls.flavor)
 
-  const antialiasScale = normalizeAntialiasScale(
-    options.antialiasScale ?? controls.antialiasScale,
-  )
+  const antialiasScale = options.antialiasScale ?? controls.antialiasScale
   const renderControls = scaleControlsForRasterization(controls, antialiasScale)
 
   // 字符倾斜关闭时，剥离字面固有的旋转与斜切、只保留缩放，让字形直立。
