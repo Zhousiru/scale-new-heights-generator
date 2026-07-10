@@ -9,14 +9,15 @@
 }
 
 .panel-preview-simple .canvas-area {
-  min-block-size: clamp(16rem, 70svh, 42rem);
+  flex: 1 1 0;
+  padding: 0;
 }
 
 .preview-wrap {
   display: grid;
   place-items: center;
-  max-inline-size: 100%;
-  max-block-size: 100%;
+  inline-size: 100%;
+  block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
 }
@@ -29,9 +30,9 @@
 
 .preview-media {
   display: block;
-  inline-size: var(--preview-width);
+  inline-size: auto;
   block-size: auto;
-  max-inline-size: 100%;
+  max-inline-size: min(100%, var(--preview-width));
   max-block-size: min(100%, var(--preview-height));
   object-fit: contain;
   transition: opacity 0.15s;
@@ -97,9 +98,14 @@
 .actions,
 .simple-footer {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.625rem;
+}
+
+.simple-footer {
+  padding-block-end: env(safe-area-inset-bottom);
 }
 
 .usage-hint {

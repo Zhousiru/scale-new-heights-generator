@@ -13,8 +13,13 @@
 }
 
 .app-simple {
-  grid-template-columns: minmax(0, 1fr);
-  inline-size: min(100%, 48rem);
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100svh;
+  min-block-size: 0;
+  margin: 0;
+  overflow: hidden;
 }
 
 .panel {
@@ -39,6 +44,17 @@
   border-radius: var(--radius);
   background: var(--card);
   box-shadow: 0 1px 2px oklch(0 0 0 / 5%);
+}
+
+.panel-preview-simple {
+  flex: 1 1 auto;
+  block-size: auto;
+  padding: 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
 }
 
 .footer-links {
@@ -77,6 +93,10 @@
   .panel-preview {
     block-size: 100%;
   }
+
+  .app-simple {
+    min-block-size: 0;
+  }
 }
 
 @media (max-width: 54rem) and (max-height: 44rem) {
@@ -86,6 +106,11 @@
   }
 
   .panel-preview {
+    block-size: auto;
+  }
+
+  .app-simple > .panel-preview-simple {
+    flex: 1 1 auto;
     block-size: auto;
   }
 }

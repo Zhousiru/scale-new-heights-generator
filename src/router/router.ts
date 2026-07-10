@@ -1,5 +1,6 @@
 import {
   Outlet,
+  createHashHistory,
   createRoute,
   createRootRoute,
   createRouter,
@@ -37,9 +38,7 @@ const stringifySearch = stringifySearchWith((value) =>
 
 export const router = createRouter({
   routeTree,
-  // GitHub Pages 部署在 /<仓库名>/ 子路径下，Vite 会把该前缀注入 BASE_URL。
-  // 不带这个 basepath，router 会把仓库名前缀当作路由清掉。
-  basepath: import.meta.env.BASE_URL,
+  history: createHashHistory(),
   parseSearch,
   stringifySearch,
 })

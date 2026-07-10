@@ -24,7 +24,7 @@ function App() {
   )
 
   if (sticker.isSimpleMode) {
-    return <main className="app app-simple">{previewPanel}</main>
+    return <main className="app-simple">{previewPanel}</main>
   }
 
   return (
