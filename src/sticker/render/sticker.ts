@@ -135,9 +135,10 @@ export async function renderSticker(
   // ---------- Glyph Tile Cache: pre-render each unique glyph once ----------
   // This is the key web optimization: avoids repeated strokeText/fillText calls.
   // 300 unique chars × 1 strokeText each, then N×drawImage (texture blit) per layer.
-  const primaryStrokeWidth = renderControls.flavor === 'snh'
-    ? effectiveOutlineWidth(renderControls.flavor, renderControls.envelope.outlineStrokeWidth) * 2
-    : effectiveOutlineWidth(renderControls.flavor, renderControls.envelope.outlineStrokeWidth + renderControls.envelope.edgeWidth) * 2
+  const primaryStrokeWidth = effectiveOutlineWidth(
+    renderControls.flavor,
+    renderControls.envelope.outlineStrokeWidth,
+  ) * 2
   const { strokeTiles, fillTiles } = buildGlyphTileCache(layout, primaryStrokeWidth)
 
   // ---------- Helper: draw non-emoji glyphs + icon with stroke and fill ----------
