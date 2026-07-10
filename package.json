@@ -1,6 +1,6 @@
 {
   "name": "scale-new-heights-generator",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "type": "module",
   "description": "中文勇攀高峰表情包与飞书头像生成器，支持浏览器 UI 与 Node 无头 PNG 渲染。",
   "main": "./lib/sticker/index.mjs",
@@ -40,7 +40,6 @@
     "colord": "^2.9.3",
     "hdrify": "^0.12.1",
     "inter-ui": "^4.1.1",
-    "lucide-react": "^1.23.0",
     "tailwind-merge": "^3.6.0"
   },
   "optionalDependencies": {

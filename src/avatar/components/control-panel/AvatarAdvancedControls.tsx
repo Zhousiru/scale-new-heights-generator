@@ -1,11 +1,14 @@
+import { AdvancedSection } from '../../../shared/components/AdvancedSection'
 import { HdrControls } from '../../../shared/components/HdrControls'
+import { SliderField } from '../../../shared/components/SliderField'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../shared/ui/collapsible'
-import { Slider } from '../../../shared/ui/slider'
-import {
+  AVATAR_FONT_SCALE_MAX,
+  AVATAR_FONT_SCALE_MIN,
+  AVATAR_FONT_WEIGHT_MAX,
+  AVATAR_FONT_WEIGHT_MIN,
+  AVATAR_FONT_WEIGHT_STEP,
+  AVATAR_LINE_HEIGHT_MAX,
+  AVATAR_LINE_HEIGHT_MIN,
   AVATAR_SIZE_MAX,
   AVATAR_SIZE_MIN,
   type AvatarControls,
@@ -24,47 +27,57 @@ export function AvatarAdvancedControls({
   updateControl,
 }: AvatarAdvancedControlsProps) {
   return (
-    <Collapsible className="advanced">
-      <CollapsibleTrigger className="advanced-summary">高级设置</CollapsibleTrigger>
-      <CollapsibleContent asChild>
-        <form
-          className="advanced-body"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <HdrControls
-            flashStops={controls.flash ? controls.flashStops : 0}
-            fieldClassName="field avatar-field field-slider"
-            onFlashStopsChange={(value) => {
-              updateControl('flashStops', value)
-              updateControl('flash', value > 0)
-            }}
-          />
+    <AdvancedSection>
+      <HdrControls
+        flashStops={controls.flash ? controls.flashStops : 0}
+        fieldClassName="field avatar-field field-slider"
+        onFlashStopsChange={(value) => {
+          updateControl('flashStops', value)
+          updateControl('flash', value > 0)
+        }}
+      />
 
-          <div className="field avatar-field field-slider">
-            <span className="field-label">尺寸</span>
-            <Slider
-              min={AVATAR_SIZE_MIN}
-              max={AVATAR_SIZE_MAX}
-              step={64}
-              value={controls.size}
-              onValueChange={(value) => updateControl('size', value)}
-            />
-            <span className="field-value">{controls.size}</span>
-          </div>
+      <SliderField
+        className="avatar-field"
+        label="字号"
+        min={AVATAR_FONT_SCALE_MIN}
+        max={AVATAR_FONT_SCALE_MAX}
+        step={0.01}
+        value={controls.fontScale}
+        valueLabel={`${Math.round(controls.fontScale * 100)}%`}
+        onValueChange={(value) => updateControl('fontScale', value)}
+      />
 
-          <div className="field avatar-field field-slider">
-            <span className="field-label">抗锯齿</span>
-            <Slider
-              min={1}
-              max={5}
-              step={0.5}
-              value={controls.antialiasScale}
-              onValueChange={(value) => updateControl('antialiasScale', value)}
-            />
-            <span className="field-value">{controls.antialiasScale}x</span>
-          </div>
-        </form>
-      </CollapsibleContent>
-    </Collapsible>
+      <SliderField
+        className="avatar-field"
+        label="字重"
+        min={AVATAR_FONT_WEIGHT_MIN}
+        max={AVATAR_FONT_WEIGHT_MAX}
+        step={AVATAR_FONT_WEIGHT_STEP}
+        value={controls.fontWeight}
+        onValueChange={(value) => updateControl('fontWeight', value)}
+      />
+
+      <SliderField
+        className="avatar-field"
+        label="行距"
+        min={AVATAR_LINE_HEIGHT_MIN}
+        max={AVATAR_LINE_HEIGHT_MAX}
+        step={0.01}
+        value={controls.lineHeight}
+        valueLabel={controls.lineHeight.toFixed(2)}
+        onValueChange={(value) => updateControl('lineHeight', value)}
+      />
+
+      <SliderField
+        className="avatar-field"
+        label="尺寸"
+        min={AVATAR_SIZE_MIN}
+        max={AVATAR_SIZE_MAX}
+        step={64}
+        value={controls.size}
+        onValueChange={(value) => updateControl('size', value)}
+      />
+    </AdvancedSection>
   )
 }

@@ -1,5 +1,5 @@
 import { Button } from '../../../shared/ui/button'
-import type { StickerControls, StickerFlavor } from '../../config/defaults'
+import type { StickerFlavor } from '../../config/defaults'
 
 const STYLE_OPTIONS: {
   id: StickerFlavor
@@ -22,15 +22,12 @@ const STYLE_OPTIONS: {
 
 interface StickerStyleFieldProps {
   flavor: StickerFlavor
-  updateControl: <K extends keyof StickerControls>(
-    key: K,
-    value: StickerControls[K],
-  ) => void
+  updateFlavor: (flavor: StickerFlavor) => void
 }
 
 export function StickerStyleField({
   flavor,
-  updateControl,
+  updateFlavor,
 }: StickerStyleFieldProps) {
   return (
     <div className="field style-field">
@@ -43,7 +40,7 @@ export function StickerStyleField({
             variant="secondary"
             className="style-option"
             active={flavor === style.id}
-            onClick={() => updateControl('flavor', style.id)}
+            onClick={() => updateFlavor(style.id)}
             title={style.label}
           >
             <img

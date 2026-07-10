@@ -32,6 +32,7 @@ function App() {
       <StickerControlsPanel
         controls={sticker.controls}
         updateControl={sticker.updateControl}
+        updateFlavor={sticker.updateFlavor}
         updateEnvelope={sticker.updateEnvelope}
         updatePadding={sticker.updatePadding}
         randomizeColors={sticker.randomizeColors}

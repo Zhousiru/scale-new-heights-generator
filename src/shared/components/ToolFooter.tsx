@@ -17,7 +17,7 @@ export function ToolFooter({
   return (
     <div className="footer-links">
       <Link className="footer-link" to={to} search={search}>
-        <Icon icon={icon} width={16} height={16} />
+        <Icon icon={icon} />
         {label}
       </Link>
       <a
@@ -26,7 +26,7 @@ export function ToolFooter({
         target="_blank"
         rel="noopener noreferrer"
       >
-        <Icon icon="tabler:book" width={16} height={16} />
+        <Icon icon="tabler:book" />
         内网文档
       </a>
       <a
@@ -35,7 +35,7 @@ export function ToolFooter({
         target="_blank"
         rel="noopener noreferrer"
       >
-        <Icon icon="tabler:brand-github" width={16} height={16} />
+        <Icon icon="tabler:brand-github" />
         GitHub
       </a>
     </div>

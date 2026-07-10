@@ -22,14 +22,14 @@ import {
   setCanvasRuntime,
   type CanvasRuntime,
 } from './render/runtime'
+import {
+  normalizeTextRenderInput,
+  type TextRenderInput,
+} from '../shared/render/input'
 import type { RenderIcon } from './render/types'
 import { iconIdToUrl } from './utils/iconLoader'
 
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
-}
-
-export type StickerRenderInput = DeepPartial<StickerControls> | string
+export type StickerRenderInput = TextRenderInput<StickerControls>
 export type { StickerFlavor }
 
 export interface StickerGeneratorRuntime extends CanvasRuntime {
@@ -114,10 +114,7 @@ async function defaultGenerator(): Promise<StickerGenerator> {
 }
 
 function normalizeRenderInput(input: StickerRenderInput): StickerControls {
-  if (typeof input === 'string') {
-    return normalizeStickerControls({ text: input })
-  }
-  return normalizeStickerControls(input)
+  return normalizeTextRenderInput(input, normalizeStickerControls)
 }
 
 function candidateFontUrls(fileName: string): URL[] {

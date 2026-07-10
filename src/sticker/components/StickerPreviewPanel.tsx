@@ -28,7 +28,7 @@ function SimpleFooter({ editorUrl }: { editorUrl: string }) {
     <div className="simple-footer">
       <Button variant="secondary" asChild>
         <a href={editorUrl} target="_top">
-          <Icon icon="tabler:edit" width={15} height={15} />
+          <Icon icon="tabler:edit" />
           编辑
         </a>
       </Button>

@@ -1,6 +1,7 @@
 import {
   DEFAULT_STICKER_CONTROLS,
   normalizeStickerControls,
+  STICKER_DEFAULT_OUTLINE_WIDTH,
   type StickerControls,
 } from './defaults'
 
@@ -44,7 +45,11 @@ export function controlsToSearch(controls: StickerControls): StickerSearch {
   putColor('sc', controls.shadow.color, d.shadow.color)
   put('so', controls.shadow.opacity, d.shadow.opacity)
 
-  put('os', controls.envelope.outlineStrokeWidth, d.envelope.outlineStrokeWidth)
+  put(
+    'os',
+    controls.envelope.outlineStrokeWidth,
+    STICKER_DEFAULT_OUTLINE_WIDTH[controls.flavor],
+  )
   put('ew', controls.envelope.edgeWidth, d.envelope.edgeWidth)
   putColors('gc', controls.envelope.colors, d.envelope.colors)
   put('ga', controls.envelope.gradientAngle, d.envelope.gradientAngle)

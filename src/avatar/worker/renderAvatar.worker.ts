@@ -9,9 +9,7 @@ self.onmessage = async (e: MessageEvent<AvatarWorkerRequest>) => {
   const { type, id, controls } = e.data
 
   try {
-    const result = await renderAvatar(controls, {
-      antialiasScale: controls.antialiasScale,
-    })
+    const result = await renderAvatar(controls)
     await postImageWorkerResult(
       id,
       type,

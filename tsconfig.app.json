@@ -25,5 +25,10 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/sticker/node.ts", "src/sticker/node.test.ts"]
+  "exclude": [
+    "src/avatar/node.ts",
+    "src/avatar/node.test.ts",
+    "src/sticker/node.ts",
+    "src/sticker/node.test.ts"
+  ]
 }

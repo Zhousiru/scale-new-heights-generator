@@ -1,4 +1,8 @@
 import { getContext, renderResultFromCanvas } from '../../shared/render/canvas'
+import {
+  normalizeTextRenderInput,
+  type TextRenderInput,
+} from '../../shared/render/input'
 import { createRuntimeCanvas } from '../../shared/render/runtime'
 import {
   normalizeAvatarControls,
@@ -6,14 +10,16 @@ import {
 } from '../config/defaults'
 import { AVATAR_STYLES } from '../config/styles'
 
-export interface RenderAvatarOptions {
-  antialiasScale?: number
-}
-
 interface AvatarLine {
   text: string
   y: number
   width: number
+}
+
+interface AvatarTextLayout {
+  fontSize: number
+  lineHeight: number
+  lines: AvatarLine[]
 }
 
 interface AvatarPaint {
@@ -21,46 +27,31 @@ interface AvatarPaint {
   solid: string
 }
 
-const MAX_LINES = 4
+const MAX_AUTO_LINES = 5
 const OUTLINE_STROKE_RATIO = 0.028
-const LINE_HEIGHT_RATIO = 1.12
-const TEXT_RADIUS_RATIO = 0.96
+const TEXT_RADIUS_RATIO = 0.85
+const LINE_INK_HALF_HEIGHT_RATIO = 0.34
 const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif'
 
 export async function renderAvatar(
-  input: Partial<AvatarControls> | string,
-  options: RenderAvatarOptions = {},
+  input: TextRenderInput<AvatarControls>,
 ) {
-  const controls = normalizeAvatarControls(
-    typeof input === 'string' ? { text: input } : input,
-  )
+  const controls = normalizeTextRenderInput(input, normalizeAvatarControls)
   const text = controls.text
   if (!hasAvatarText(text)) {
     throw new Error('Text is required for avatar export.')
   }
 
-  const scale = options.antialiasScale ?? controls.antialiasScale
   const size = Math.round(controls.size)
-  const workSize = Math.max(1, Math.round(size * scale))
-  const canvas = createRuntimeCanvas(workSize, workSize)
+  const canvas = createRuntimeCanvas(size, size)
   const context = getContext(canvas)
-  const center = workSize / 2
-  const radius = workSize / 2
+  const center = size / 2
+  const radius = size / 2
 
   const paint = createAvatarPaint(context, controls, center, radius)
-  drawBackground(context, controls, center, radius, workSize, paint)
+  drawBackground(context, controls, center, radius, size, paint)
   drawText(context, text, controls, center, radius, paint)
-
-  if (scale === 1) {
-    return renderResultFromCanvas(canvas)
-  }
-
-  const output = createRuntimeCanvas(size, size)
-  const outputContext = getContext(output)
-  outputContext.imageSmoothingEnabled = true
-  outputContext.imageSmoothingQuality = 'high'
-  outputContext.drawImage(canvas, 0, 0, size, size)
-  return renderResultFromCanvas(output)
+  return renderResultFromCanvas(canvas)
 }
 
 function drawBackground(
@@ -92,24 +83,19 @@ function drawText(
   radius: number,
   paint: AvatarPaint,
 ): void {
-  const safeRadius = radius * (controls.mode === 'outline' ? 0.78 : 0.86)
-  const maxFontSize = safeRadius
-  const minFontSize = Math.max(10, radius * 0.12)
-  let best = layoutText(context, text, minFontSize, safeRadius)
-
-  let low = minFontSize
-  let high = maxFontSize
-  for (let attempt = 0; attempt < 18; attempt += 1) {
-    const fontSize = (low + high) / 2
-    const layout = layoutText(context, text, fontSize, safeRadius)
-    if (layout) {
-      best = layout
-      low = fontSize
-    } else {
-      high = fontSize
-    }
-  }
-  if (!best) return
+  const textRadius = Math.min(
+    radius,
+    radius * TEXT_RADIUS_RATIO * controls.fontScale,
+  )
+  const layout = fitTextLayout(
+    context,
+    text,
+    textRadius,
+    controls.fontWeight,
+    controls.lineHeight,
+    Math.max(10, radius * 0.12),
+  )
+  if (!layout) return
 
   context.save()
   context.translate(center, center)
@@ -117,10 +103,11 @@ function drawText(
   context.textAlign = 'center'
   context.textBaseline = 'middle'
   context.fillStyle = controls.mode === 'outline' ? paint.solid : '#ffffff'
-  context.font = fontSpec(best.fontSize)
+  context.font = fontSpec(layout.fontSize, controls.fontWeight)
 
-  for (const line of best.lines) {
-    context.fillText(line.text, 0, line.y)
+  const yOffset = textBlockCenterOffset(context, layout)
+  for (const line of layout.lines) {
+    context.fillText(line.text, 0, line.y + yOffset)
   }
   context.restore()
 }
@@ -150,27 +137,60 @@ function createAvatarPaint(
   return { gradient, solid: style.solid }
 }
 
+function fitTextLayout(
+  context: OffscreenCanvasRenderingContext2D,
+  text: string,
+  radius: number,
+  fontWeight: number,
+  lineHeightRatio: number,
+  minFontSize: number,
+): AvatarTextLayout | null {
+  let best: AvatarTextLayout | null = null
+  let low = minFontSize
+  let high = radius
+
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    const fontSize = (low + high) / 2
+    const layout = layoutText(
+      context,
+      text,
+      fontSize,
+      fontWeight,
+      radius,
+      lineHeightRatio,
+    )
+    if (layout) {
+      best = layout
+      low = fontSize
+    } else {
+      high = fontSize
+    }
+  }
+  return best
+}
+
 function layoutText(
   context: OffscreenCanvasRenderingContext2D,
   text: string,
   fontSize: number,
+  fontWeight: number,
   radius: number,
-): { fontSize: number; lines: AvatarLine[] } | null {
-  context.font = fontSpec(fontSize)
+  lineHeightRatio: number,
+): AvatarTextLayout | null {
+  context.font = fontSpec(fontSize, fontWeight)
+  const lineHeight = fontSize * lineHeightRatio
   const manualLines = manualLineTexts(text)
   if (manualLines) {
-    const lines = layoutManualLines(context, manualLines, fontSize, radius)
-    return lines ? { fontSize, lines } : null
+    const lines = layoutManualLines(context, manualLines, lineHeight, radius)
+    return lines ? { fontSize, lineHeight, lines } : null
   }
 
   const graphemes = splitGraphemes(normalizeLineBreaks(text))
-  const lineHeight = fontSize * LINE_HEIGHT_RATIO
-  const maxLines = Math.min(MAX_LINES, Math.max(1, graphemes.length))
-  const preferredLines = preferredLineCount(graphemes.length, maxLines)
+  const maxLines = Math.min(MAX_AUTO_LINES, graphemes.length)
   let best: AvatarLine[] | null = null
   let bestScore = Number.POSITIVE_INFINITY
 
-  for (let lineCount = preferredLines; lineCount <= maxLines; lineCount += 1) {
+  for (let lineCount = 2; lineCount <= maxLines; lineCount += 1) {
     const lines = chooseAutoLines(context, graphemes, lineHeight, lineCount, radius)
     if (!lines) continue
 
@@ -180,13 +200,7 @@ function layoutText(
       bestScore = score
     }
   }
-  if (best) return { fontSize, lines: best }
-
-  for (let lineCount = preferredLines - 1; lineCount >= 1; lineCount -= 1) {
-    const lines = chooseAutoLines(context, graphemes, lineHeight, lineCount, radius)
-    if (lines) return { fontSize, lines }
-  }
-  return null
+  return best ? { fontSize, lineHeight, lines: best } : null
 }
 
 function manualLineTexts(text: string): string[] | null {
@@ -194,31 +208,26 @@ function manualLineTexts(text: string): string[] | null {
   const visibleLength = splitGraphemes(text.replace(/\s+/g, '')).length
   if (!hasLineBreak && visibleLength > 3) return null
 
-  const lines = hasLineBreak
+  return hasLineBreak
     ? text.split(/\r\n|\r|\n/)
     : [text]
-  return lines.length > 0 ? lines : null
 }
 
 function layoutManualLines(
   context: OffscreenCanvasRenderingContext2D,
   lineTexts: string[],
-  fontSize: number,
+  lineHeight: number,
   radius: number,
 ): AvatarLine[] | null {
-  const lineHeight = fontSize * LINE_HEIGHT_RATIO
   const lines = lineTexts.map((text, index) => ({
     text,
     y: lineY(index, lineTexts.length, lineHeight),
-    width: measureText(context, text),
+    width: context.measureText(text).width,
   }))
 
-  for (const line of lines) {
-    if (line.width > lineLimit(radius, line.y, lineHeight)) {
-      return null
-    }
-  }
-  return lines
+  return lines.every((line) => line.width <= lineLimit(radius, line.y, lineHeight))
+    ? lines
+    : null
 }
 
 function chooseAutoLines(
@@ -238,7 +247,7 @@ function chooseAutoLines(
 
     if (remainingLines === 1) {
       const line = createLine(context, graphemes, start, graphemes.length, lineIndex, lineCount, lineHeight)
-      if (!line || line.width > lineLimit(radius, line.y, lineHeight)) return
+      if (line.width > lineLimit(radius, line.y, lineHeight)) return
 
       const candidate = [...lines, line]
       const score = layoutScore(candidate, radius, lineHeight)
@@ -254,7 +263,7 @@ function chooseAutoLines(
     const maxEnd = graphemes.length - remainingLines + 1
     for (let end = start + 1; end <= maxEnd; end += 1) {
       const line = createLine(context, graphemes, start, end, lineIndex, lineCount, lineHeight)
-      if (!line || line.width > maxWidth) break
+      if (line.width > maxWidth) break
       visit(end, lineIndex + 1, [...lines, line])
     }
   }
@@ -271,19 +280,13 @@ function createLine(
   lineIndex: number,
   lineCount: number,
   lineHeight: number,
-): AvatarLine | null {
+): AvatarLine {
   const text = graphemes.slice(start, end).join('')
-  if (text.length === 0) return null
-
   return {
     text,
     y: lineY(lineIndex, lineCount, lineHeight),
-    width: measureText(context, text),
+    width: context.measureText(text).width,
   }
-}
-
-function preferredLineCount(length: number, maxLines: number): number {
-  return Math.min(maxLines, Math.max(2, Math.ceil(length / 3)))
 }
 
 function layoutScore(lines: AvatarLine[], radius: number, lineHeight: number): number {
@@ -304,23 +307,40 @@ function chordWidth(radius: number, y: number): number {
 }
 
 function lineLimit(radius: number, y: number, lineHeight: number): number {
-  const textRadius = radius * TEXT_RADIUS_RATIO
-  const halfLine = lineHeight / 2
+  const halfInk = lineHeight * LINE_INK_HALF_HEIGHT_RATIO
   return Math.min(
-    chordWidth(textRadius, y - halfLine),
-    chordWidth(textRadius, y + halfLine),
+    chordWidth(radius, y - halfInk),
+    chordWidth(radius, y + halfInk),
   )
 }
 
-function measureText(
+function textBlockCenterOffset(
   context: OffscreenCanvasRenderingContext2D,
-  text: string,
+  layout: AvatarTextLayout,
 ): number {
-  return context.measureText(text).width
+  let top = Number.POSITIVE_INFINITY
+  let bottom = Number.NEGATIVE_INFINITY
+
+  for (const line of layout.lines) {
+    const metrics = context.measureText(line.text)
+    const hasInkBounds =
+      metrics.actualBoundingBoxAscent > 0 || metrics.actualBoundingBoxDescent > 0
+    const lineTop = hasInkBounds
+      ? line.y - metrics.actualBoundingBoxAscent
+      : line.y - layout.lineHeight / 2
+    const lineBottom = hasInkBounds
+      ? line.y + metrics.actualBoundingBoxDescent
+      : line.y + layout.lineHeight / 2
+    top = Math.min(top, lineTop)
+    bottom = Math.max(bottom, lineBottom)
+  }
+
+  if (!Number.isFinite(top) || !Number.isFinite(bottom)) return 0
+  return -(top + bottom) / 2
 }
 
-function fontSpec(fontSize: number): string {
-  return `500 ${fontSize}px ${FONT_FAMILY}`
+function fontSpec(fontSize: number, fontWeight: number): string {
+  return `${fontWeight} ${fontSize}px ${FONT_FAMILY}`
 }
 
 function hasAvatarText(text: string): boolean {

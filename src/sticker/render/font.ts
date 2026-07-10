@@ -20,8 +20,6 @@ export interface StickerFontDescriptor {
   family: string
   weight: string
   file: string
-  /** 同一个 UI 描边值在不同字面上的视觉外扩倍率。 */
-  outlineScale: number
   /**
    * 每种字体在绘制时应用的字形整形参数（见 `drawPlacedGlyphs`）。这些是按字面
    * 手动精调的旋钮，只作用于文字字形（Emoji 保持直立）。所有变换都以每个字形的
@@ -35,7 +33,6 @@ const FONT_REGISTRY: Record<StickerFlavor, StickerFontDescriptor> = {
     family: 'DouyinSansBold',
     weight: 'bold',
     file: 'DouyinSansBold.woff2',
-    outlineScale: 1,
     // >>> 勇攀高峰 (抖音美好体) 手动精调区：如需垂直方向挤压等，改这里 <<<
     // scale=[水平, 垂直]；skewDeg=[水平斜切, 垂直斜切]（度）。
     // 垂直斜切 -3.5° 即该字面固有的竖向倾斜。
@@ -49,8 +46,6 @@ const FONT_REGISTRY: Record<StickerFlavor, StickerFontDescriptor> = {
     family: 'YouSheBiaoTiHei',
     weight: 'bold',
     file: 'YouSheBiaoTiHei.ttf',
-    // 优设标题黑字面本身更厚，且 bs 直接画深色外轮廓；同等像素外扩会显得更重。
-    outlineScale: 0.7,
     // >>> 字节范 (优设标题黑) 手动精调区：垂直拉高 + 固有水平斜切 <<<
     // scale=[水平, 垂直]；skewDeg=[水平斜切, 垂直斜切]（度）。
     transform: {
@@ -71,10 +66,6 @@ export function stickerFontDescriptor(
 // 的旋钮。只整形文字字形；Emoji 保持直立以避免描边尖峰。
 export function fontGlyphTransform(flavor: StickerFlavor): GlyphTransform {
   return stickerFontDescriptor(flavor).transform
-}
-
-export function effectiveOutlineWidth(flavor: StickerFlavor, width: number): number {
-  return width * stickerFontDescriptor(flavor).outlineScale
 }
 
 // 判断整段文本是否以中文为主。用于 snh：中文比例足够高时，少量英文数字随抖音

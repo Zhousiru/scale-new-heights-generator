@@ -43,6 +43,10 @@ export interface StickerPaddingControls {
 export type StickerFlavor = 'snh' | 'bs'
 
 export const STICKER_FLAVORS: StickerFlavor[] = ['snh', 'bs']
+export const STICKER_DEFAULT_OUTLINE_WIDTH: Record<StickerFlavor, number> = {
+  snh: 20,
+  bs: 14,
+}
 
 // 渲染倍率的单一真源：默认值与合法区间都只在这里定义，
 // 渲染层（sticker.ts）与 Node 入口（node.ts）一律 import，禁止各自重写。
@@ -96,7 +100,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   icon: '',
   fontSize: 220,
   letterSpacing: -8,
-  lineHeight: 1.1,
+  lineHeight: 1,
   alternatingOffset: 16,
   peak: true,
   tilt: true,
@@ -114,7 +118,7 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
     opacity: 0.4,
   },
   envelope: {
-    outlineStrokeWidth: 20,
+    outlineStrokeWidth: STICKER_DEFAULT_OUTLINE_WIDTH.snh,
     edgeWidth: 4,
     colors: ['#08e', '#9cf'],
     gradientAngle: 180,
@@ -136,16 +140,17 @@ export function normalizeStickerControls(value: unknown): StickerControls {
   const shadow = isRecord(input.shadow) ? input.shadow : {}
   const envelope = isRecord(input.envelope) ? input.envelope : {}
   const padding = isRecord(input.padding) ? input.padding : {}
+  const flavor =
+    input.flavor === 'bs' || input.flavor === 'snh'
+      ? input.flavor
+      : DEFAULT_STICKER_CONTROLS.flavor
 
   return {
     text:
       typeof input.text === 'string'
         ? input.text
         : DEFAULT_STICKER_CONTROLS.text,
-    flavor:
-      input.flavor === 'bs' || input.flavor === 'snh'
-        ? input.flavor
-        : DEFAULT_STICKER_CONTROLS.flavor,
+    flavor,
     icon:
       typeof input.icon === 'string'
         ? input.icon
@@ -224,7 +229,7 @@ export function normalizeStickerControls(value: unknown): StickerControls {
         envelope.outlineStrokeWidth,
         0,
         48,
-        DEFAULT_STICKER_CONTROLS.envelope.outlineStrokeWidth,
+        STICKER_DEFAULT_OUTLINE_WIDTH[flavor],
       ),
       edgeWidth: clampNumber(
         envelope.edgeWidth,

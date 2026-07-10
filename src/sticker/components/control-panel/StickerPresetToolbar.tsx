@@ -44,6 +44,7 @@ export function StickerPresetToolbar({
       controls.icon !== activePreset.icon ||
       controls.iconTilt !== activePreset.iconTilt ||
       controls.envelope.gradientAngle !== activePreset.gradientAngle ||
+      controls.envelope.outlineStrokeWidth !== activePreset.outlineStrokeWidth ||
       controls.envelope.colors.join(',') !== activePreset.colors.join(','))
 
   return (
@@ -164,8 +165,6 @@ function PresetOption({
           className="preset-option-icon"
           icon={preset.icon}
           mode="mask"
-          width={16}
-          height={16}
         />
       ) : null}
       <span className="preset-option-text">{preset.text}</span>

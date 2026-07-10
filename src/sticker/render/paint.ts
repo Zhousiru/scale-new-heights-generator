@@ -1,4 +1,4 @@
-import { createAntialiasedAlpha } from './mask'
+import { computeSquaredDistanceTransform, createAntialiasedAlpha } from './mask'
 import { createRuntimeCanvas } from './runtime'
 import { getContext } from './canvas'
 import type { BinaryMask } from './types'
@@ -243,6 +243,44 @@ export function erodeCanvasInward(canvas: OffscreenCanvas, radius: number): void
   if (modified) {
     ctx.putImageData(imageData, 0, 0)
   }
+}
+
+export function dilateCanvasOutwardRound(
+  canvas: OffscreenCanvas,
+  radius: number,
+  alphaThreshold = 16,
+  feather = 1,
+): void {
+  if (radius <= 0) return
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const total = width * height
+  const mask = new Uint8ClampedArray(total)
+
+  for (let index = 0; index < total; index += 1) {
+    mask[index] = data[index * 4 + 3] > alphaThreshold ? 255 : 0
+  }
+
+  const distances = computeSquaredDistanceTransform({ width, height, data: mask })
+  const featherEnd = radius + feather
+
+  for (let index = 0; index < total; index += 1) {
+    const distance = Math.sqrt(distances[index])
+    if (distance > featherEnd) continue
+
+    const offset = index * 4
+    const alpha = distance <= radius
+      ? 255
+      : Math.round((featherEnd - distance) / feather * 255)
+    data[offset] = 255
+    data[offset + 1] = 255
+    data[offset + 2] = 255
+    data[offset + 3] = Math.max(data[offset + 3], alpha)
+  }
+
+  ctx.putImageData(imageData, 0, 0)
 }
 
 /**

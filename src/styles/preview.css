@@ -27,16 +27,21 @@
   min-block-size: 0;
 }
 
-.preview-wrap canvas,
-.preview-wrap img {
+.preview-media {
   display: block;
+  inline-size: var(--preview-width);
+  block-size: auto;
   max-inline-size: 100%;
-  max-block-size: 100%;
+  max-block-size: min(100%, var(--preview-height));
   object-fit: contain;
   transition: opacity 0.15s;
 }
 
-.preview-wrap canvas {
+.preview-media-hidden {
+  display: none;
+}
+
+.preview-wrap canvas.preview-media {
   background-color: var(--canvas-bg);
   background-image:
     linear-gradient(45deg, var(--checker) 25%, transparent 25%),
@@ -47,8 +52,7 @@
   background-size: 1.25rem 1.25rem;
 }
 
-.preview-wrap canvas.stale,
-.preview-wrap img.stale {
+.preview-media.stale {
   opacity: 0.35;
 }
 

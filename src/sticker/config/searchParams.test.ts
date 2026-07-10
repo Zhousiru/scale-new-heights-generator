@@ -20,7 +20,17 @@ describe('searchParams', () => {
       envelope: { ...DEFAULT_STICKER_CONTROLS.envelope, colors: ['#abcdef'] },
     })
 
-    expect(search).toEqual({ t: '测试', fl: 'bs', aa: '5', gc: 'abcdef' })
+    expect(search).toEqual({
+      t: '测试',
+      fl: 'bs',
+      aa: '5',
+      os: '20',
+      gc: 'abcdef',
+    })
+  })
+
+  it('uses flavor-specific outline defaults', () => {
+    expect(searchToControls({ fl: 'bs' }).envelope.outlineStrokeWidth).toBe(14)
   })
 
   it('round-trips a customized control set', () => {

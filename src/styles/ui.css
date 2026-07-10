@@ -9,6 +9,7 @@
   border-radius: calc(var(--radius) - 0.125rem);
   font-weight: 500;
   line-height: 1.25;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -156,8 +157,10 @@
 }
 
 .ui-select-content {
+  box-sizing: border-box;
   z-index: 50;
   min-inline-size: var(--radix-select-trigger-width);
+  max-inline-size: var(--radix-select-content-available-width, calc(100vw - 1rem));
   max-block-size: var(--radix-select-content-available-height, calc(100svh - 2rem));
   overflow: hidden;
   border: 1px solid var(--border);
@@ -170,6 +173,9 @@
 }
 
 .ui-select-viewport {
+  max-block-size: inherit;
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 0.375rem;
 }
 

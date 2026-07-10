@@ -13,8 +13,10 @@ describe('avatar search params', () => {
       s: '768',
       r: '-8',
       ga: '45',
+      fz: '1.12',
+      fw: '700',
+      lh: '1.24',
       fx: '1',
-      aa: '2',
     })
 
     expect(controls).toMatchObject({
@@ -24,9 +26,11 @@ describe('avatar search params', () => {
       size: 768,
       rotation: -8,
       gradientAngle: 45,
+      fontScale: 1.12,
+      fontWeight: 700,
+      lineHeight: 1.24,
       flash: true,
       flashStops: 1,
-      antialiasScale: 2,
     })
     expect(controlsToSearch(controls)).toEqual({
       t: '前端群',
@@ -35,8 +39,10 @@ describe('avatar search params', () => {
       s: '768',
       r: '-8',
       ga: '45',
+      fz: '1.12',
+      fw: '700',
+      lh: '1.24',
       fx: '1',
-      aa: '2',
     })
   })
 })

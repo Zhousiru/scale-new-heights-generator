@@ -1,6 +1,7 @@
 import type { StickerFlavor } from '../config/defaults'
 import { fontSpec, usesFeatureFont } from './font'
 import { isEmojiGrapheme } from './layout'
+import { dilateCanvasOutwardRound } from './paint'
 import { getContext } from './canvas'
 import { createRuntimeCanvas } from './runtime'
 import type {
@@ -10,7 +11,9 @@ import type {
   StickerLayout,
 } from './types'
 
-const EMOJI_CORNER_CUT_RATIO = 0.02
+const EMOJI_CORNER_CUT_RATIO = 1 / 30
+const EMOJI_ALPHA_THRESHOLD = 16
+const EMOJI_DILATION_FEATHER = 1
 
 // ---------------------------------------------------------------------------
 // Glyph Tile Cache — pre-render each unique glyph once, then blit via drawImage.
@@ -200,6 +203,13 @@ function renderEmojiFillTile(
   const drawX = placement.x - bounds.minX + padding
   const drawY = placement.baselineY - bounds.minY + padding
   ctx.fillText(grapheme, drawX, drawY)
+  clearEmojiTileCornerArtifacts(
+    ctx,
+    padding,
+    padding,
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
+  )
 
   return {
     canvas,
@@ -210,7 +220,7 @@ function renderEmojiFillTile(
 
 /**
  * Render an emoji stroke tile by first drawing its fill shape, then dilating
- * outward by strokeLineWidth/2 using BFS pixel expansion.
+ * outward by strokeLineWidth/2 using rounded distance-field expansion.
  * This works for bitmap emoji fonts where strokeText has no effect.
  */
 function renderEmojiStrokeTile(
@@ -237,9 +247,20 @@ function renderEmojiStrokeTile(
   const drawX = placement.x - bounds.minX + padding
   const drawY = placement.baselineY - bounds.minY + padding
   ctx.fillText(grapheme, drawX, drawY)
+  clearEmojiTileCornerArtifacts(
+    ctx,
+    padding,
+    padding,
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
+  )
 
-  // Dilate outward using BFS from opaque pixels
-  dilateCanvasOutward(canvas, dilateRadius)
+  dilateCanvasOutwardRound(
+    canvas,
+    dilateRadius,
+    EMOJI_ALPHA_THRESHOLD,
+    EMOJI_DILATION_FEATHER,
+  )
 
   return {
     canvas,
@@ -248,57 +269,27 @@ function renderEmojiStrokeTile(
   }
 }
 
-/**
- * Dilate (expand) opaque regions outward by `radius` pixels.
- * BFS from all opaque pixels into transparent neighbors.
- */
-function dilateCanvasOutward(canvas: OffscreenCanvas, radius: number): void {
-  if (radius <= 0) return
-  const { width, height } = canvas
-  const ctx = getContext(canvas)
-  const imageData = ctx.getImageData(0, 0, width, height)
-  const { data } = imageData
-  const total = width * height
+function clearEmojiTileCornerArtifacts(
+  context: OffscreenCanvasRenderingContext2D,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): void {
+  clearEmojiCornerPair(context, left, top, width, height)
+  clearEmojiCornerPair(context, 0, 0, context.canvas.width, context.canvas.height)
+}
 
-  const dist = new Uint16Array(total)
-  dist.fill(65535)
-  const queue = new Int32Array(total)
-  let qHead = 0
-  let qTail = 0
-
-  // Seed: all opaque pixels get distance 0
-  for (let i = 0; i < total; i++) {
-    if (data[i * 4 + 3] > 16) {
-      dist[i] = 0
-      queue[qTail++] = i
-    }
-  }
-
-  // BFS expansion
-  const intRadius = Math.ceil(radius)
-  while (qHead < qTail) {
-    const i = queue[qHead++]
-    const d = dist[i] + 1
-    if (d > intRadius) continue
-    const x = i % width
-    const y = (i - x) / width
-    if (x > 0 && dist[i - 1] > d) { dist[i - 1] = d; queue[qTail++] = i - 1 }
-    if (x < width - 1 && dist[i + 1] > d) { dist[i + 1] = d; queue[qTail++] = i + 1 }
-    if (y > 0 && dist[i - width] > d) { dist[i - width] = d; queue[qTail++] = i - width }
-    if (y < height - 1 && dist[i + width] > d) { dist[i + width] = d; queue[qTail++] = i + width }
-  }
-
-  // Fill dilated pixels
-  for (let i = 0; i < total; i++) {
-    if (dist[i] > 0 && dist[i] <= intRadius) {
-      const off = i * 4
-      data[off] = 255
-      data[off + 1] = 255
-      data[off + 2] = 255
-      data[off + 3] = 255
-    }
-  }
-  ctx.putImageData(imageData, 0, 0)
+function clearEmojiCornerPair(
+  context: OffscreenCanvasRenderingContext2D,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): void {
+  const cutSize = Math.max(2, Math.round(Math.min(width, height) * EMOJI_CORNER_CUT_RATIO))
+  context.clearRect(left + width - cutSize, top, cutSize, cutSize)
+  context.clearRect(left, top + height - cutSize, cutSize, cutSize)
 }
 
 /**
@@ -409,10 +400,7 @@ function clearEmojiCornerArtifacts(
   const top = originY + placement.bounds.minY
   const width = placement.bounds.maxX - placement.bounds.minX
   const height = placement.bounds.maxY - placement.bounds.minY
-  const cutSize = Math.max(1, Math.round(Math.min(width, height) * EMOJI_CORNER_CUT_RATIO))
-
-  context.clearRect(left + width - cutSize, top, cutSize, cutSize)
-  context.clearRect(left, top + height - cutSize, cutSize, cutSize)
+  clearEmojiCornerPair(context, left, top, width, height)
 }
 
 function drawSingleEmojiGlyph(

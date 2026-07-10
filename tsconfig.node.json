@@ -22,5 +22,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "src/sticker/node.ts", "src/sticker/node.test.ts"]
+  "include": [
+    "vite.config.ts",
+    "src/avatar/node.ts",
+    "src/avatar/node.test.ts",
+    "src/sticker/node.ts",
+    "src/sticker/node.test.ts"
+  ]
 }

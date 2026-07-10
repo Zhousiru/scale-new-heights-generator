@@ -6,6 +6,8 @@ import {
 
 export type AvatarSearch = Record<string, string>
 
+const AVATAR_SEARCH_KEYS = new Set(['t', 'st', 'md', 's', 'r', 'ga', 'fz', 'fw', 'lh', 'fx'])
+
 export function controlsToSearch(controls: AvatarControls): AvatarSearch {
   const d = DEFAULT_AVATAR_CONTROLS
   const search: AvatarSearch = {}
@@ -19,8 +21,10 @@ export function controlsToSearch(controls: AvatarControls): AvatarSearch {
   put('s', controls.size, d.size)
   put('r', controls.rotation, d.rotation)
   put('ga', controls.gradientAngle, d.gradientAngle)
+  put('fz', controls.fontScale, d.fontScale)
+  put('fw', controls.fontWeight, d.fontWeight)
+  put('lh', controls.lineHeight, d.lineHeight)
   if (controls.flash && controls.flashStops > 0) search.fx = formatNumber(controls.flashStops)
-  put('aa', controls.antialiasScale, d.antialiasScale)
   return search
 }
 
@@ -40,15 +44,18 @@ export function searchToControls(search: AvatarSearch): AvatarControls {
     size: num(get('s')),
     rotation: num(get('r')),
     gradientAngle: num(get('ga')),
+    fontScale: num(get('fz')),
+    fontWeight: num(get('fw')),
+    lineHeight: num(get('lh')),
     flash: flashStops !== undefined && flashStops > 0,
     flashStops,
-    antialiasScale: num(get('aa')),
   })
 }
 
 export function validateAvatarSearch(search: Record<string, unknown>): AvatarSearch {
   const result: AvatarSearch = {}
   for (const [key, value] of Object.entries(search)) {
+    if (!AVATAR_SEARCH_KEYS.has(key)) continue
     if (typeof value === 'string') result[key] = value
     else if (typeof value === 'number') result[key] = String(value)
   }

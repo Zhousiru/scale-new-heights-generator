@@ -4,7 +4,6 @@ import {
 } from '../config/defaults'
 import { darken, lighten, resolveGradientStops } from '../utils/color'
 import {
-  effectiveOutlineWidth,
   ensureStickerFontLoaded,
   fontGlyphTransform,
   iconGlyphTransformFrom,
@@ -23,7 +22,12 @@ import {
 import {
   createGradient,
 } from './gradient'
-import { erodeCanvasInward, fillEnclosedRegionsCanvas, gradientExtentFromCanvas } from './paint'
+import {
+  dilateCanvasOutwardRound,
+  erodeCanvasInward,
+  fillEnclosedRegionsCanvas,
+  gradientExtentFromCanvas,
+} from './paint'
 import { createRuntimeCanvas } from './runtime'
 import {
   configureTextContext,
@@ -31,7 +35,6 @@ import {
   buildGlyphTileCache,
   drawColorEmoji,
   drawEmojiGlyphs,
-  drawFilledGlyphs,
   drawGlyphsFromTiles,
   drawIcon,
   drawPlacedGlyphs,
@@ -39,6 +42,7 @@ import {
 } from './glyphs'
 import {
   IDENTITY_GLYPH_TRANSFORM,
+  type GradientExtent,
   type GlyphTransform,
   type OpaqueBounds,
   type RenderIcon,
@@ -135,10 +139,7 @@ export async function renderSticker(
   // ---------- Glyph Tile Cache: pre-render each unique glyph once ----------
   // This is the key web optimization: avoids repeated strokeText/fillText calls.
   // 300 unique chars × 1 strokeText each, then N×drawImage (texture blit) per layer.
-  const primaryStrokeWidth = effectiveOutlineWidth(
-    renderControls.flavor,
-    renderControls.envelope.outlineStrokeWidth,
-  ) * 2
+  const primaryStrokeWidth = renderControls.envelope.outlineStrokeWidth * 2
   const { strokeTiles, fillTiles } = buildGlyphTileCache(layout, primaryStrokeWidth)
 
   // ---------- Helper: draw non-emoji glyphs + icon with stroke and fill ----------
@@ -166,9 +167,9 @@ export async function renderSticker(
         drawEmojiGlyphs(context, layout, renderControls.fontSize, renderControls.flavor, ox, oy)
       }
     }
-    // draw icon (if present, non-colored icons participate in outline)
+    // draw icon shape with the same outward expansion as text stroke
     if (iconBitmap && iconBox) {
-      drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
+      drawIconShape(context, lineWidth, ox, oy)
     }
   }
 
@@ -195,11 +196,35 @@ export async function renderSticker(
     return canvas
   }
 
-  if (renderControls.flavor === 'snh') {
-    const bandWidth = effectiveOutlineWidth(
-      renderControls.flavor,
-      renderControls.envelope.outlineStrokeWidth,
+  const drawIconShape = (
+    context: OffscreenCanvasRenderingContext2D,
+    lineWidth: number,
+    ox = originX,
+    oy = originY,
+  ) => {
+    if (!iconBitmap || !iconBox) return
+    if (lineWidth <= 0) {
+      drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
+      return
+    }
+
+    const iconCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+    drawIcon(
+      getContext(iconCanvas),
+      iconBitmap,
+      iconBox,
+      ox,
+      oy,
+      iconGlyphTransform,
     )
+    dilateCanvasOutwardRound(iconCanvas, lineWidth / 2)
+    context.drawImage(iconCanvas, 0, 0)
+  }
+
+  if (renderControls.flavor === 'snh') {
+    // 白色字形置于彩色包体内并带较深的边缘轮廓，另在字形下方叠加 multiply 混合
+    // 阴影，使白字读起来像是浮在彩色主体之上（匹配源表情包）。
+    const bandWidth = renderControls.envelope.outlineStrokeWidth
 
     // Build the solid white envelope shape once — reused by all layers
     const envelopeWhiteCanvas = createSolidShapeCanvas(bandWidth * 2)
@@ -209,45 +234,34 @@ export async function renderSticker(
     )
 
     // Layer 1: Envelope — dilated outline filled with gradient
-    const envelopeCanvas = createRuntimeCanvas(workingWidth, workingHeight)
-    const envelopeCtx = getContext(envelopeCanvas)
-    envelopeCtx.drawImage(envelopeWhiteCanvas, 0, 0)
-    // Color with gradient via source-in compositing
-    envelopeCtx.globalCompositeOperation = 'source-in'
-    envelopeCtx.fillStyle = createGradient(
-      envelopeCtx, renderControls.envelope.gradientAngle,
-      gradientStops, envelopeGradientExtent,
+    const envelopeCanvas = cloneCanvas(envelopeWhiteCanvas)
+    fillSourceInGradient(
+      envelopeCanvas,
+      renderControls.envelope.gradientAngle,
+      gradientStops,
+      envelopeGradientExtent,
     )
-    envelopeCtx.fillRect(0, 0, workingWidth, workingHeight)
-    outputContext.drawImage(envelopeCanvas, 0, 0)
+    compositeCanvas(outputContext, envelopeCanvas)
 
     // Layer 2: Edge band — darkened ring between outer and inner boundary
     if (renderControls.envelope.edgeWidth > 0 && renderControls.envelope.edgeOpacity > 0) {
-      const edgeCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+      const edgeCanvas = cloneCanvas(envelopeWhiteCanvas)
       const edgeCtx = getContext(edgeCanvas)
-      edgeCtx.drawImage(envelopeWhiteCanvas, 0, 0)
       // Erode inward by edgeWidth to get the inner boundary
-      const erodedCanvas = createRuntimeCanvas(workingWidth, workingHeight)
-      const erodedCtx = getContext(erodedCanvas)
-      erodedCtx.drawImage(envelopeWhiteCanvas, 0, 0)
+      const erodedCanvas = cloneCanvas(envelopeWhiteCanvas)
       erodeCanvasInward(erodedCanvas, renderControls.envelope.edgeWidth)
       // edge = envelope - eroded (subtract inner from outer)
       edgeCtx.globalCompositeOperation = 'destination-out'
       edgeCtx.drawImage(erodedCanvas, 0, 0)
       // Color the edge ring with darkened gradient
-      edgeCtx.globalCompositeOperation = 'source-in'
-      edgeCtx.fillStyle = createGradient(
-        edgeCtx, renderControls.envelope.gradientAngle,
+      fillSourceInGradient(
+        edgeCanvas,
+        renderControls.envelope.gradientAngle,
         gradientStops.map((color) => darken(color, 0.45)),
         envelopeGradientExtent,
       )
-      edgeCtx.fillRect(0, 0, workingWidth, workingHeight)
       // Composite edge onto output with multiply blend
-      outputContext.save()
-      outputContext.globalAlpha = renderControls.envelope.edgeOpacity
-      outputContext.globalCompositeOperation = 'multiply'
-      outputContext.drawImage(edgeCanvas, 0, 0)
-      outputContext.restore()
+      compositeCanvas(outputContext, edgeCanvas, renderControls.envelope.edgeOpacity, 'multiply')
     }
 
     // Layer 3: Inner shadow
@@ -270,19 +284,12 @@ export async function renderSticker(
           iconGlyphTransform,
         )
       }
-      shadowCtx.globalCompositeOperation = 'source-in'
       shadowCtx.filter = 'none'
-      shadowCtx.fillStyle = renderControls.shadow.color
-      shadowCtx.fillRect(0, 0, workingWidth, workingHeight)
+      fillSourceInColor(shadowCanvas, renderControls.shadow.color)
       // Clip shadow to the envelope shape (reuse envelopeWhiteCanvas)
-      shadowCtx.globalCompositeOperation = 'destination-in'
-      shadowCtx.drawImage(envelopeWhiteCanvas, 0, 0)
+      clipCanvasToAlpha(shadowCanvas, envelopeWhiteCanvas)
       // Composite shadow onto output
-      outputContext.save()
-      outputContext.globalAlpha = renderControls.shadow.opacity
-      outputContext.globalCompositeOperation = 'multiply'
-      outputContext.drawImage(shadowCanvas, 0, 0)
-      outputContext.restore()
+      compositeCanvas(outputContext, shadowCanvas, renderControls.shadow.opacity, 'multiply')
     }
 
     // Layer 4: White glyph fill on top
@@ -290,17 +297,12 @@ export async function renderSticker(
     const glyphCtx = getContext(glyphCanvas)
     glyphCtx.fillStyle = '#ffffff'
     drawFillOnly(glyphCtx)
-    glyphCtx.globalCompositeOperation = 'source-in'
-    glyphCtx.fillStyle = '#ffffff'
-    glyphCtx.fillRect(0, 0, workingWidth, workingHeight)
-    outputContext.drawImage(glyphCanvas, 0, 0)
+    fillSourceInColor(glyphCanvas, '#ffffff')
+    compositeCanvas(outputContext, glyphCanvas)
 
   } else {
-    // bs (字节范) flavor
-    const rimWidth = effectiveOutlineWidth(
-      renderControls.flavor,
-      renderControls.envelope.outlineStrokeWidth,
-    )
+    // 彩色字形直接由加深的同色系外层带包裹——没有白色描边。外扩部分就是加深后的颜色本身。
+    const rimWidth = renderControls.envelope.outlineStrokeWidth
 
     const byteOutlineStops = gradientStops.map((color) =>
       darken(color, BYTE_OUTLINE_DARKEN),
@@ -311,31 +313,30 @@ export async function renderSticker(
 
     // Layer 1: Deep outline — darkened gradient fill
     const deepCanvas = createSolidShapeCanvas(rimWidth * 2)
-    const deepCtx = getContext(deepCanvas)
     const deepGradientExtent = gradientExtentFromCanvas(
       deepCanvas,
       renderControls.envelope.gradientAngle,
     )
-    deepCtx.globalCompositeOperation = 'source-in'
-    deepCtx.fillStyle = createGradient(
-      deepCtx, renderControls.envelope.gradientAngle,
-      byteOutlineStops, deepGradientExtent,
+    fillSourceInGradient(
+      deepCanvas,
+      renderControls.envelope.gradientAngle,
+      byteOutlineStops,
+      deepGradientExtent,
     )
-    deepCtx.fillRect(0, 0, workingWidth, workingHeight)
-    outputContext.drawImage(deepCanvas, 0, 0)
+    compositeCanvas(outputContext, deepCanvas)
 
     // Layer 2: Glyph fill — foreground gradient
     const glyphCanvas = createRuntimeCanvas(workingWidth, workingHeight)
     const glyphCtx = getContext(glyphCanvas)
     glyphCtx.fillStyle = '#ffffff'
     drawFillOnly(glyphCtx)
-    glyphCtx.globalCompositeOperation = 'source-in'
-    glyphCtx.fillStyle = createGradient(
-      glyphCtx, renderControls.envelope.gradientAngle,
-      byteForegroundStops, deepGradientExtent,
+    fillSourceInGradient(
+      glyphCanvas,
+      renderControls.envelope.gradientAngle,
+      byteForegroundStops,
+      deepGradientExtent,
     )
-    glyphCtx.fillRect(0, 0, workingWidth, workingHeight)
-    outputContext.drawImage(glyphCanvas, 0, 0)
+    compositeCanvas(outputContext, glyphCanvas)
   }
 
   // Emoji 以原生彩色叠加在最上层（不参与蒙版着色，保留其真实配色）。
@@ -394,6 +395,50 @@ function boundsToCropBounds(
     right: Math.ceil(originX + bounds.maxX) - 1,
     bottom: Math.ceil(originY + bounds.maxY) - 1,
   }
+}
+
+function cloneCanvas(source: OffscreenCanvas): OffscreenCanvas {
+  const canvas = createRuntimeCanvas(source.width, source.height)
+  getContext(canvas).drawImage(source, 0, 0)
+  return canvas
+}
+
+function fillSourceInGradient(
+  canvas: OffscreenCanvas,
+  angle: number,
+  stops: string[],
+  extent: GradientExtent,
+): void {
+  const context = getContext(canvas)
+  context.globalCompositeOperation = 'source-in'
+  context.fillStyle = createGradient(context, angle, stops, extent)
+  context.fillRect(0, 0, canvas.width, canvas.height)
+}
+
+function fillSourceInColor(canvas: OffscreenCanvas, color: string): void {
+  const context = getContext(canvas)
+  context.globalCompositeOperation = 'source-in'
+  context.fillStyle = color
+  context.fillRect(0, 0, canvas.width, canvas.height)
+}
+
+function clipCanvasToAlpha(canvas: OffscreenCanvas, mask: OffscreenCanvas): void {
+  const context = getContext(canvas)
+  context.globalCompositeOperation = 'destination-in'
+  context.drawImage(mask, 0, 0)
+}
+
+function compositeCanvas(
+  target: OffscreenCanvasRenderingContext2D,
+  source: OffscreenCanvas,
+  opacity = 1,
+  operation: GlobalCompositeOperation = 'source-over',
+): void {
+  target.save()
+  target.globalAlpha = opacity
+  target.globalCompositeOperation = operation
+  target.drawImage(source, 0, 0)
+  target.restore()
 }
 
 function scaleControlsForRasterization(

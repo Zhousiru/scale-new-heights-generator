@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { Icon } from '@iconify/react'
 import type { CSSProperties } from 'react'
 import { Button } from '../../../shared/ui/button'
 import { Select } from '../../../shared/ui/select'
@@ -72,7 +72,7 @@ export function AvatarModeStylePicker({
             hideIndicator
             align="start"
             sideOffset={6}
-            trigger={<ChevronDown size={14} />}
+            trigger={<Icon icon="tabler:chevron-down" />}
             triggerLabel={`${option.label}更多样式`}
             triggerTitle="更多样式"
             options={AVATAR_STYLE_LIST.map((styleOption) => ({

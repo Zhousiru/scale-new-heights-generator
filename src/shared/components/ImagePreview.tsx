@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { Button } from '../ui/button'
+import { cn } from '../utils/cn'
 
 interface PreviewBase {
   width: number
@@ -58,7 +59,13 @@ export function CanvasPreview({
 }: CanvasPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const displayWidth = preview ? cssPixelWidth(preview.width) : undefined
+  const showBitmap = preview?.kind === 'bitmap'
+  const previewVars = preview
+    ? {
+        '--preview-width': `${cssPixelSize(preview.width)}px`,
+        '--preview-height': `${cssPixelSize(preview.height)}px`,
+      } as CSSProperties
+    : undefined
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -66,8 +73,6 @@ export function CanvasPreview({
 
     canvas.width = preview.width
     canvas.height = preview.height
-    canvas.style.maxWidth = `min(100%, ${cssPixelWidth(preview.width)}px)`
-    canvas.style.height = 'auto'
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -89,19 +94,21 @@ export function CanvasPreview({
   return (
     <div className="canvas-area">
       {hasContent ? (
-        <div className="preview-wrap">
+        <div className="preview-wrap" style={previewVars}>
           <canvas
             ref={canvasRef}
-            className={isRendering && preview?.kind === 'bitmap' ? 'stale' : undefined}
-            style={{ display: preview?.kind === 'bitmap' ? 'block' : 'none' }}
+            className={cn(
+              'preview-media',
+              !showBitmap && 'preview-media-hidden',
+              isRendering && showBitmap && 'stale',
+            )}
           />
           {preview?.kind === 'blob' && imageUrl ? (
             <img
-              className={isRendering ? 'stale' : undefined}
+              className={cn('preview-media', isRendering && 'stale')}
               src={imageUrl}
               width={preview.width}
               height={preview.height}
-              style={{ width: '100%', maxWidth: `${displayWidth}px` }}
               alt="预览"
             />
           ) : null}
@@ -115,8 +122,8 @@ export function CanvasPreview({
   )
 }
 
-function cssPixelWidth(width: number): number {
-  return width / (window.devicePixelRatio || 1)
+function cssPixelSize(size: number): number {
+  return size / (window.devicePixelRatio || 1)
 }
 
 export function PreviewActions({
@@ -135,7 +142,7 @@ export function PreviewActions({
         type="button"
         onClick={onCopyImage}
       >
-        <Icon icon="tabler:copy" width={15} height={15} />
+        <Icon icon="tabler:copy" />
         {copied === 'image' ? '已复制' : '复制图片'}
       </Button>
       {IN_IFRAME ? (
@@ -145,7 +152,7 @@ export function PreviewActions({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Icon icon="tabler:external-link" width={15} height={15} />
+            <Icon icon="tabler:external-link" />
             新标签页导出
           </a>
         </Button>
@@ -156,7 +163,7 @@ export function PreviewActions({
           disabled={isExporting}
           onClick={onExport}
         >
-          <Icon icon="tabler:download" width={15} height={15} />
+          <Icon icon="tabler:download" />
           {isExporting ? '导出中…' : exportLabel}
         </Button>
       )}
@@ -165,7 +172,7 @@ export function PreviewActions({
         type="button"
         onClick={onCopyLink}
       >
-        <Icon icon="tabler:link" width={15} height={15} />
+        <Icon icon="tabler:link" />
         {copied === 'link' ? '已复制' : '复制链接'}
       </Button>
     </div>

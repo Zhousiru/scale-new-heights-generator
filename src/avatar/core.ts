@@ -1,6 +1,5 @@
 export {
   renderAvatar,
-  type RenderAvatarOptions,
 } from './render/avatar'
 export {
   setCanvasRuntime,

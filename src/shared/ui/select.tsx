@@ -1,5 +1,5 @@
 import * as SelectPrimitive from '@radix-ui/react-select'
-import { Check, ChevronDown } from 'lucide-react'
+import { Icon } from '@iconify/react'
 import type { ReactNode } from 'react'
 import { cn } from '../utils/cn'
 
@@ -31,6 +31,7 @@ interface SelectProps {
   hideIndicator?: boolean
   align?: 'start' | 'center' | 'end'
   sideOffset?: number
+  collisionPadding?: number
   onOpenChange?: (open: boolean) => void
   onValueChange: (value: string) => void
 }
@@ -51,6 +52,7 @@ export function Select({
   hideIndicator,
   align,
   sideOffset,
+  collisionPadding = 8,
   onOpenChange,
   onValueChange,
 }: SelectProps) {
@@ -72,7 +74,7 @@ export function Select({
               placeholder={placeholder}
             />
             <SelectPrimitive.Icon asChild>
-              <ChevronDown size={15} />
+              <Icon icon="tabler:chevron-down" />
             </SelectPrimitive.Icon>
           </>
         )}
@@ -83,6 +85,7 @@ export function Select({
           position="popper"
           align={align}
           sideOffset={sideOffset}
+          collisionPadding={collisionPadding}
         >
           <SelectPrimitive.Viewport className={cn('ui-select-viewport', viewportClassName)}>
             {groups
@@ -135,7 +138,7 @@ function SelectItem({
       <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
       {hideIndicator ? null : (
         <SelectPrimitive.ItemIndicator className="ui-select-indicator">
-          <Check size={14} />
+          <Icon icon="tabler:check" />
         </SelectPrimitive.ItemIndicator>
       )}
     </SelectPrimitive.Item>

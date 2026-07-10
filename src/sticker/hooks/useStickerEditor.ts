@@ -18,6 +18,8 @@ import {
   defaultGradientAngle,
   type StickerControls,
   type StickerEnvelopeControls,
+  STICKER_DEFAULT_OUTLINE_WIDTH,
+  type StickerFlavor,
   type StickerPaddingControls,
 } from '../config/defaults'
 import { STICKER_PRESET_LIST, type StickerPreset } from '../config/presets'
@@ -109,6 +111,17 @@ export function useStickerEditor() {
     setControls((c) => ({ ...c, envelope: { ...c.envelope, [key]: value } }))
   }
 
+  const updateFlavor = (flavor: StickerFlavor) => {
+    setControls((c) => ({
+      ...c,
+      flavor,
+      envelope: {
+        ...c.envelope,
+        outlineStrokeWidth: STICKER_DEFAULT_OUTLINE_WIDTH[flavor],
+      },
+    }))
+  }
+
   const updatePadding = <K extends keyof StickerPaddingControls>(
     key: K,
     value: StickerPaddingControls[K],
@@ -175,6 +188,7 @@ export function useStickerEditor() {
         colors: preset.colors,
         gradientAngle:
           preset.gradientAngle ?? DEFAULT_STICKER_CONTROLS.envelope.gradientAngle,
+        outlineStrokeWidth: preset.outlineStrokeWidth,
       },
     }))
   }
@@ -247,6 +261,7 @@ export function useStickerEditor() {
     shareUrl: buildStickerUrl(controls, true),
     editorUrl: buildStickerUrl(controls),
     updateControl,
+    updateFlavor,
     updateEnvelope,
     updatePadding,
     randomizeColors,

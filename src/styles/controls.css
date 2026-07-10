@@ -6,6 +6,7 @@
 .advanced-summary {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   inline-size: 100%;
   padding: 0.5rem 0.625rem;
   border: 1px solid transparent;
@@ -21,24 +22,13 @@
     color 0.15s;
 }
 
-.advanced-summary::before {
-  content: '';
-  display: inline-block;
-  inline-size: 0.45rem;
-  block-size: 0.45rem;
-  margin-inline: 0.125rem 0.5rem;
-  border-inline-end: 1.5px solid currentColor;
-  border-block-end: 1.5px solid currentColor;
-  transform: rotate(-45deg);
+.advanced-summary-icon {
+  flex: none;
   transition: transform 0.15s;
 }
 
-.advanced-summary::-webkit-details-marker {
-  display: none;
-}
-
-.advanced-summary[data-state='open']::before {
-  transform: rotate(45deg);
+.advanced-summary[data-state='open'] .advanced-summary-icon {
+  transform: rotate(90deg);
 }
 
 .advanced-summary:hover {
@@ -251,10 +241,15 @@
 }
 
 .preset-select-content {
-  inline-size: min(calc(100vw - 2rem), max(42rem, var(--radix-select-trigger-width)));
+  inline-size: min(
+    var(--radix-select-content-available-width, calc(100vw - 1rem)),
+    max(42rem, var(--radix-select-trigger-width))
+  );
 }
 
 .preset-select-viewport {
+  inline-size: 100%;
+  min-inline-size: 0;
   padding: 0.25rem;
 }
 
@@ -270,6 +265,7 @@
 }
 
 .preset-select-viewport .ui-select-item {
+  min-inline-size: 0;
   min-block-size: 1.75rem;
   padding: 0.25rem 1.625rem 0.25rem 0.375rem;
 }
@@ -420,7 +416,9 @@
   .style-label {
     text-align: start;
   }
+}
 
+@container (min-width: 24rem) {
   .avatar-mode-main {
     flex-direction: row;
     justify-content: flex-start;
@@ -438,7 +436,10 @@
 
 .avatar-mode-menu {
   z-index: 20;
-  inline-size: min(calc(100vw - 2rem), max(28rem, 100%));
+  inline-size: min(
+    var(--radix-select-content-available-width, calc(100vw - 1rem)),
+    max(28rem, var(--radix-select-trigger-width))
+  );
   max-block-size: var(--radix-select-content-available-height, calc(100svh - 2rem));
   overflow: hidden;
   border: 1px solid var(--border);
@@ -453,6 +454,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   gap: 0.125rem;
+  inline-size: 100%;
+  min-inline-size: 0;
   max-block-size: inherit;
   overflow: auto;
   overscroll-behavior: contain;
@@ -463,6 +466,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-inline-size: 0;
   min-block-size: 1.75rem;
   padding: 0.25rem 0.375rem;
   border-radius: calc(var(--radius) - 0.25rem);
@@ -494,6 +498,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+.avatar-style-option-content > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .color-pair {
@@ -684,7 +695,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 34rem) {
+@media (max-width: 20rem) {
   .toolbar-row {
     flex-wrap: wrap;
   }

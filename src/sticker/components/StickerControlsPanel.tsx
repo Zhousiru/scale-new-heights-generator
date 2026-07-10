@@ -3,6 +3,7 @@ import { Textarea } from '../../shared/ui/input'
 import type {
   StickerControls,
   StickerEnvelopeControls,
+  StickerFlavor,
   StickerPaddingControls,
 } from '../config/defaults'
 import { StickerAdvancedControls } from './control-panel/StickerAdvancedControls'
@@ -16,6 +17,7 @@ interface StickerControlsPanelProps {
     key: K,
     value: StickerControls[K],
   ) => void
+  updateFlavor: (flavor: StickerFlavor) => void
   updateEnvelope: <K extends keyof StickerEnvelopeControls>(
     key: K,
     value: StickerEnvelopeControls[K],
@@ -34,6 +36,7 @@ interface StickerControlsPanelProps {
 export function StickerControlsPanel({
   controls,
   updateControl,
+  updateFlavor,
   updateEnvelope,
   updatePadding,
   randomizeColors,
@@ -74,7 +77,7 @@ export function StickerControlsPanel({
 
       <StickerStyleField
         flavor={controls.flavor}
-        updateControl={updateControl}
+        updateFlavor={updateFlavor}
       />
 
       <StickerIconField

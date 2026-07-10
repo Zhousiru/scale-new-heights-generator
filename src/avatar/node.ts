@@ -4,26 +4,16 @@ import {
   setCanvasRuntime,
   type CanvasRuntime,
 } from '../shared/render/runtime'
-import {
-  normalizeAvatarControls,
-  type AvatarControls,
-} from './config/defaults'
+import type { TextRenderInput } from '../shared/render/input'
+import type { AvatarControls } from './config/defaults'
 import { renderAvatar } from './render/avatar'
 
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
-}
-
-export type AvatarRenderInput = DeepPartial<AvatarControls> | string
+export type AvatarRenderInput = TextRenderInput<AvatarControls>
 
 export interface AvatarGeneratorRuntime extends CanvasRuntime {}
 
 interface NapiCanvasModule {
   createCanvas: (width: number, height: number) => unknown
-}
-
-export interface RenderAvatarNodeOptions {
-  antialiasScale?: unknown
 }
 
 let defaultRuntimePromise: Promise<AvatarGeneratorRuntime> | null = null
@@ -61,25 +51,16 @@ async function defaultGenerator(): Promise<AvatarGenerator> {
   return defaultGeneratorPromise
 }
 
-function normalizeRenderInput(input: AvatarRenderInput): AvatarControls {
-  if (typeof input === 'string') {
-    return normalizeAvatarControls({ text: input })
-  }
-  return normalizeAvatarControls(input)
-}
-
 export async function renderAvatarToPngBytes(
   input: AvatarRenderInput,
-  options: RenderAvatarNodeOptions = {},
 ): Promise<Uint8Array> {
-  return await (await defaultGenerator()).renderPngBytes(input, options)
+  return await (await defaultGenerator()).renderPngBytes(input)
 }
 
 export async function renderAvatarToBuffer(
   input: AvatarRenderInput,
-  options: RenderAvatarNodeOptions = {},
 ): Promise<Buffer> {
-  return await (await defaultGenerator()).renderBuffer(input, options)
+  return await (await defaultGenerator()).renderBuffer(input)
 }
 
 export class AvatarGenerator {
@@ -92,28 +73,15 @@ export class AvatarGenerator {
 
   async renderPngBytes(
     input: AvatarRenderInput,
-    options: RenderAvatarNodeOptions = {},
   ): Promise<Uint8Array> {
-    const result = await renderAvatar(normalizeRenderInput(input), {
-      antialiasScale: options.antialiasScale === undefined
-        ? undefined
-        : numberOption(options.antialiasScale),
-    })
+    const result = await renderAvatar(input)
     return await runtimeCanvasToPngBytes(result.canvas)
   }
 
   async renderBuffer(
     input: AvatarRenderInput,
-    options: RenderAvatarNodeOptions = {},
   ): Promise<Buffer> {
-    const bytes = await this.renderPngBytes(input, options)
+    const bytes = await this.renderPngBytes(input)
     return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   }
-}
-
-function numberOption(value: unknown): number | undefined {
-  const parsed = typeof value === 'string' ? Number(value.trim()) : value
-  return typeof parsed === 'number' && Number.isFinite(parsed)
-    ? parsed
-    : undefined
 }

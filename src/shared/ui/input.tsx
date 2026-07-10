@@ -1,16 +1,16 @@
-import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import type { ComponentProps } from 'react'
 import { cn } from '../utils/cn'
 
 export function Input({
   className,
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+}: ComponentProps<'input'>) {
   return <input className={cn('ui-input', className)} {...props} />
 }
 
 export function Textarea({
   className,
   ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: ComponentProps<'textarea'>) {
   return <textarea className={cn('ui-textarea', className)} {...props} />
 }

@@ -1,4 +1,8 @@
-import { defaultGradientAngle, type StickerFlavor } from './defaults'
+import {
+  defaultGradientAngle,
+  STICKER_DEFAULT_OUTLINE_WIDTH,
+  type StickerFlavor,
+} from './defaults'
 
 interface StickerPresetSeed {
   text: string
@@ -7,6 +11,7 @@ interface StickerPresetSeed {
   /** 仅用于极少数覆盖组默认值的场景；大多数预设不要显式写默认值。 */
   flavor?: StickerFlavor
   gradientAngle?: number
+  outlineStrokeWidth?: number
   icon?: string
   /** 圆形/徽章类图标不适合随文字斜切。 */
   iconTilt?: boolean
@@ -15,15 +20,20 @@ interface StickerPresetSeed {
 export interface StickerPreset extends StickerPresetSeed {
   flavor: StickerFlavor
   gradientAngle: number
+  outlineStrokeWidth: number
   icon: string
   iconTilt: boolean
 }
 
-type PresetDefaults = Pick<StickerPreset, 'flavor' | 'gradientAngle' | 'icon' | 'iconTilt'>
+type PresetDefaults = Pick<
+  StickerPreset,
+  'flavor' | 'gradientAngle' | 'outlineStrokeWidth' | 'icon' | 'iconTilt'
+>
 
 const PRESET_DEFAULTS: PresetDefaults = {
   flavor: 'snh',
   gradientAngle: 180,
+  outlineStrokeWidth: STICKER_DEFAULT_OUTLINE_WIDTH.snh,
   icon: '',
   iconTilt: true,
 }
@@ -71,7 +81,10 @@ export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
 export type StickerPresetGroup = keyof typeof STICKER_PRESETS
 
 const PRESET_GROUP_DEFAULTS: Record<string, Partial<PresetDefaults>> = {
-  字节范: { flavor: 'bs' },
+  字节范: {
+    flavor: 'bs',
+    outlineStrokeWidth: STICKER_DEFAULT_OUTLINE_WIDTH.bs,
+  },
 }
 
 // 渐变角度默认由「是否有图标」决定（有图标 90° 横向、无图标 180° 纵向）；

@@ -1,6 +1,5 @@
 export {
   renderAvatar,
-  type RenderAvatarOptions,
 } from './render/avatar'
 export {
   DEFAULT_AVATAR_CONTROLS,

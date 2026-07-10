@@ -1,8 +1,4 @@
 import {
-  DEFAULT_ANTIALIAS_SCALE,
-  normalizeAntialiasScale,
-} from '../../shared/config/scale'
-import {
   DEFAULT_FLASH_STOPS,
   FLASH_STOPS_MAX,
   FLASH_STOPS_MIN,
@@ -20,9 +16,11 @@ export interface AvatarControls {
   size: number
   rotation: number
   gradientAngle: number
+  fontScale: number
+  fontWeight: number
+  lineHeight: number
   flash: boolean
   flashStops: number
-  antialiasScale: number
 }
 
 export type AvatarMode = 'fill' | 'outline'
@@ -32,6 +30,13 @@ export const AVATAR_SIZE_MAX = 1024
 export const AVATAR_FLASH_STOPS_MIN = FLASH_STOPS_MIN
 export const AVATAR_FLASH_STOPS_MAX = FLASH_STOPS_MAX
 export const AVATAR_FLASH_STOPS_STEP = FLASH_STOPS_STEP
+export const AVATAR_FONT_SCALE_MIN = 0.85
+export const AVATAR_FONT_SCALE_MAX = 1.25
+export const AVATAR_FONT_WEIGHT_MIN = 100
+export const AVATAR_FONT_WEIGHT_MAX = 800
+export const AVATAR_FONT_WEIGHT_STEP = 50
+export const AVATAR_LINE_HEIGHT_MIN = 1
+export const AVATAR_LINE_HEIGHT_MAX = 1.4
 
 export const DEFAULT_AVATAR_CONTROLS: AvatarControls = {
   text: '离职',
@@ -40,9 +45,11 @@ export const DEFAULT_AVATAR_CONTROLS: AvatarControls = {
   size: 512,
   rotation: 0,
   gradientAngle: 135,
+  fontScale: 1,
+  fontWeight: 550,
+  lineHeight: 1.1,
   flash: false,
   flashStops: DEFAULT_FLASH_STOPS,
-  antialiasScale: DEFAULT_ANTIALIAS_SCALE,
 }
 
 export function normalizeAvatarControls(value: unknown): AvatarControls {
@@ -80,6 +87,24 @@ export function normalizeAvatarControls(value: unknown): AvatarControls {
       360,
       AVATAR_STYLES[style].gradientAngle ?? DEFAULT_AVATAR_CONTROLS.gradientAngle,
     ),
+    fontScale: clampNumber(
+      input.fontScale,
+      AVATAR_FONT_SCALE_MIN,
+      AVATAR_FONT_SCALE_MAX,
+      DEFAULT_AVATAR_CONTROLS.fontScale,
+    ),
+    fontWeight: clampNumber(
+      input.fontWeight,
+      AVATAR_FONT_WEIGHT_MIN,
+      AVATAR_FONT_WEIGHT_MAX,
+      DEFAULT_AVATAR_CONTROLS.fontWeight,
+    ),
+    lineHeight: clampNumber(
+      input.lineHeight,
+      AVATAR_LINE_HEIGHT_MIN,
+      AVATAR_LINE_HEIGHT_MAX,
+      DEFAULT_AVATAR_CONTROLS.lineHeight,
+    ),
     flash:
       typeof input.flash === 'boolean'
         ? input.flash
@@ -90,7 +115,6 @@ export function normalizeAvatarControls(value: unknown): AvatarControls {
       AVATAR_FLASH_STOPS_MAX,
       DEFAULT_AVATAR_CONTROLS.flashStops,
     ),
-    antialiasScale: normalizeAntialiasScale(input.antialiasScale),
   }
 }
 
