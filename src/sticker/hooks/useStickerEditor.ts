@@ -23,8 +23,12 @@ import { controlsToSearch, searchToControls } from '../config/searchParams'
 
 export type CopiedTarget = 'image' | 'link'
 
-function buildShareUrl(controls: StickerControls): string {
+const SIMPLE_MODE_PARAM = 'm'
+const SIMPLE_MODE_VALUE = 'simple'
+
+function buildStickerUrl(controls: StickerControls, simpleMode = false): string {
   const params = new URLSearchParams(controlsToSearch(controls))
+  if (simpleMode) params.set(SIMPLE_MODE_PARAM, SIMPLE_MODE_VALUE)
   const query = params.toString()
   return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
 }
@@ -39,6 +43,7 @@ function searchKey(search: Record<string, string>): string {
 export function useStickerEditor() {
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
+  const isSimpleMode = search[SIMPLE_MODE_PARAM] === SIMPLE_MODE_VALUE
   const currentSearchKey = useMemo(() => searchKey(search), [search])
   const lastWrittenSearchKey = useRef(currentSearchKey)
 
@@ -71,16 +76,17 @@ export function useStickerEditor() {
   // 同步控件 → URL query（用 replace，避免刷屏历史记录）。
   useEffect(() => {
     const nextSearch = controlsToSearch(renderControls)
+    if (isSimpleMode) nextSearch[SIMPLE_MODE_PARAM] = SIMPLE_MODE_VALUE
     lastWrittenSearchKey.current = searchKey(nextSearch)
     void navigate({
       to: '.',
       search: () => nextSearch,
       replace: true,
     })
-  }, [renderControls, navigate])
+  }, [renderControls, isSimpleMode, navigate])
 
   useEffect(() => {
-    if (renderControls.text.trim().length === 0) {
+    if (renderControls.text.length === 0) {
       setPreview((prev) => {
         prev?.bitmap.close()
         return null
@@ -123,7 +129,7 @@ export function useStickerEditor() {
     }
   }, [renderControls])
 
-  const hasText = controls.text.trim().length > 0
+  const hasText = controls.text.length > 0
 
   const updateControl = <K extends keyof StickerControls>(
     key: K,
@@ -257,7 +263,7 @@ export function useStickerEditor() {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(buildShareUrl(controls))
+      await navigator.clipboard.writeText(buildStickerUrl(controls, true))
       flashCopied('link')
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : '复制链接失败。'
@@ -273,7 +279,9 @@ export function useStickerEditor() {
     isRendering,
     copied,
     hasText,
-    shareUrl: buildShareUrl(controls),
+    isSimpleMode,
+    shareUrl: buildStickerUrl(controls, true),
+    editorUrl: buildStickerUrl(controls),
     updateControl,
     updateEnvelope,
     updatePadding,

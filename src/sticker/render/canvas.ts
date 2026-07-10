@@ -1,5 +1,6 @@
 import { findOpaqueBounds } from './mask'
-import { createRuntimeCanvas, runtimeCanvasToPngBytes } from './runtime'
+import { createRuntimeCanvas } from './runtime'
+import type { OpaqueBounds } from './types'
 
 export function extractAlphaChannel(rgba: Uint8ClampedArray): Uint8ClampedArray {
   const alpha = new Uint8ClampedArray(rgba.length / 4)
@@ -11,51 +12,13 @@ export function extractAlphaChannel(rgba: Uint8ClampedArray): Uint8ClampedArray 
   return alpha
 }
 
-export function cropCanvas(sourceCanvas: OffscreenCanvas): OffscreenCanvas {
-  const sourceContext = getContext(sourceCanvas)
-  const imageData = sourceContext.getImageData(
-    0,
-    0,
-    sourceCanvas.width,
-    sourceCanvas.height,
-  )
-  const bounds = findOpaqueBounds(
-    extractAlphaChannel(imageData.data),
-    sourceCanvas.width,
-    sourceCanvas.height,
-  )
-
-  if (!bounds) {
-    throw new Error('Rendered canvas is empty.')
-  }
-
-  const left = bounds.left
-  const top = bounds.top
-  const width = bounds.right - left + 1
-  const height = bounds.bottom - top + 1
-
-  const croppedCanvas = createCanvas(width, height)
-  const croppedContext = getContext(croppedCanvas)
-  croppedContext.drawImage(
-    sourceCanvas,
-    left,
-    top,
-    width,
-    height,
-    0,
-    0,
-    width,
-    height,
-  )
-  return croppedCanvas
-}
-
 export function cropResizePadCanvas(
   sourceCanvas: OffscreenCanvas,
   scale: number,
   maxEdge: number,
   paddingX: number,
   paddingY: number,
+  minimumBounds?: OpaqueBounds,
 ): OffscreenCanvas {
   const sourceContext = getContext(sourceCanvas)
   const imageData = sourceContext.getImageData(
@@ -64,12 +27,18 @@ export function cropResizePadCanvas(
     sourceCanvas.width,
     sourceCanvas.height,
   )
-  const bounds = findOpaqueBounds(
+  const opaqueBounds = findOpaqueBounds(
     extractAlphaChannel(imageData.data),
     sourceCanvas.width,
     sourceCanvas.height,
   )
 
+  const bounds = mergeOpaqueBounds(
+    opaqueBounds,
+    minimumBounds,
+    sourceCanvas.width,
+    sourceCanvas.height,
+  )
   if (!bounds) {
     throw new Error('Rendered canvas is empty.')
   }
@@ -86,7 +55,7 @@ export function cropResizePadCanvas(
   const outputHeight = Math.max(1, Math.round(scaledHeight * clampScale))
   const x = Math.max(0, Math.round(paddingX))
   const y = Math.max(0, Math.round(paddingY))
-  const canvas = createCanvas(outputWidth + x * 2, outputHeight + y * 2)
+  const canvas = createRuntimeCanvas(outputWidth + x * 2, outputHeight + y * 2)
   const context = getContext(canvas)
   context.imageSmoothingEnabled = true
   context.imageSmoothingQuality = 'high'
@@ -104,56 +73,34 @@ export function cropResizePadCanvas(
   return canvas
 }
 
-// 在导出的表情包四周添加透明留白。X 与 Y 相互独立，因此默认可以让左右保持紧凑，
-// 同时给上下正常的间距。
-export function padCanvas(
-  sourceCanvas: OffscreenCanvas,
-  paddingX: number,
-  paddingY: number,
-): OffscreenCanvas {
-  const x = Math.max(0, Math.round(paddingX))
-  const y = Math.max(0, Math.round(paddingY))
-  if (x === 0 && y === 0) {
-    return sourceCanvas
+function mergeOpaqueBounds(
+  opaqueBounds: OpaqueBounds | null,
+  minimumBounds: OpaqueBounds | undefined,
+  width: number,
+  height: number,
+): OpaqueBounds | null {
+  if (!minimumBounds) return opaqueBounds
+
+  const clampedMinimum = {
+    left: Math.max(0, Math.min(width - 1, minimumBounds.left)),
+    top: Math.max(0, Math.min(height - 1, minimumBounds.top)),
+    right: Math.max(0, Math.min(width - 1, minimumBounds.right)),
+    bottom: Math.max(0, Math.min(height - 1, minimumBounds.bottom)),
   }
+  if (
+    clampedMinimum.right < clampedMinimum.left ||
+    clampedMinimum.bottom < clampedMinimum.top
+  ) {
+    return opaqueBounds
+  }
+  if (!opaqueBounds) return clampedMinimum
 
-  const width = sourceCanvas.width + x * 2
-  const height = sourceCanvas.height + y * 2
-  const paddedCanvas = createCanvas(width, height)
-  const paddedContext = getContext(paddedCanvas)
-  paddedContext.drawImage(sourceCanvas, x, y)
-  return paddedCanvas
-}
-
-export function resizeCanvasByScale(
-  sourceCanvas: OffscreenCanvas,
-  scale: number,
-  maxEdge: number,
-): OffscreenCanvas {
-  const scaledWidth = Math.max(1, Math.round(sourceCanvas.width * scale))
-  const scaledHeight = Math.max(1, Math.round(sourceCanvas.height * scale))
-  const longestEdge = Math.max(scaledWidth, scaledHeight)
-  const clampScale = longestEdge > maxEdge ? maxEdge / longestEdge : 1
-  const outputWidth = Math.max(1, Math.round(scaledWidth * clampScale))
-  const outputHeight = Math.max(1, Math.round(scaledHeight * clampScale))
-  const canvas = createCanvas(outputWidth, outputHeight)
-  const context = getContext(canvas)
-  context.imageSmoothingEnabled = true
-  context.imageSmoothingQuality = 'high'
-  context.drawImage(sourceCanvas, 0, 0, outputWidth, outputHeight)
-  return canvas
-}
-
-export function canvasToPngBlob(canvas: OffscreenCanvas): Promise<Blob> {
-  return canvas.convertToBlob({ type: 'image/png' })
-}
-
-export function canvasToPngBytes(canvas: OffscreenCanvas): Promise<Uint8Array> {
-  return runtimeCanvasToPngBytes(canvas)
-}
-
-export function createCanvas(width: number, height: number): OffscreenCanvas {
-  return createRuntimeCanvas(width, height)
+  return {
+    left: Math.min(opaqueBounds.left, clampedMinimum.left),
+    top: Math.min(opaqueBounds.top, clampedMinimum.top),
+    right: Math.max(opaqueBounds.right, clampedMinimum.right),
+    bottom: Math.max(opaqueBounds.bottom, clampedMinimum.bottom),
+  }
 }
 
 export function getContext(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {

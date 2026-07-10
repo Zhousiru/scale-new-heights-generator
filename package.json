@@ -7,18 +7,9 @@
   "module": "./lib/sticker/index.mjs",
   "types": "./lib/sticker/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./lib/sticker/index.d.mts",
-      "import": "./lib/sticker/index.mjs"
-    },
-    "./core": {
-      "types": "./lib/sticker/core.d.mts",
-      "import": "./lib/sticker/core.mjs"
-    },
-    "./node": {
-      "types": "./lib/sticker/node.d.mts",
-      "import": "./lib/sticker/node.mjs"
-    }
+    ".": "./lib/sticker/index.mjs",
+    "./core": "./lib/sticker/core.mjs",
+    "./node": "./lib/sticker/node.mjs"
   },
   "files": [
     "lib",
@@ -30,8 +21,8 @@
     "dev": "vite",
     "build": "pnpm run build:app && pnpm run build:package",
     "build:app": "vite build",
-    "build:package": "rimraf lib && tsdown src/sticker/index.ts src/sticker/core.ts src/sticker/node.ts --out-dir lib/sticker --format esm --dts --platform node --target es2023 --tsconfig tsconfig.node.json --deps.never-bundle @napi-rs/canvas",
-    "lint": "oxlint src vite.config.ts --import-plugin --react-plugin --jsx-a11y-plugin --vitest-plugin --deny-warnings",
+    "build:package": "tsdown",
+    "lint": "oxlint .",
     "preview": "vite preview",
     "test": "vitest run",
     "prepack": "pnpm run build:package"
@@ -53,7 +44,6 @@
     "oxlint": "^1.73.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "rimraf": "^6.1.3",
     "tsdown": "^0.22.4",
     "typescript": "~5.9.3",
     "vite": "^8.1.3",

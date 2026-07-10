@@ -1,7 +1,6 @@
 import {
   createRootRoute,
   createRouter,
-  createMemoryHistory,
   parseSearchWith,
   stringifySearchWith,
 } from '@tanstack/react-router'
@@ -23,15 +22,6 @@ const stringifySearch = stringifySearchWith((value) =>
   value == null ? '' : String(value),
 )
 
-// 在 iframe 内地址栏由父页控制，因此退回到内存 history，避免与宿主争抢 URL。
-const inIframe = (() => {
-  try {
-    return window.self !== window.top
-  } catch {
-    return true
-  }
-})()
-
 export const router = createRouter({
   routeTree,
   // GitHub Pages 部署在 /<仓库名>/ 子路径下，Vite 会把该前缀注入 BASE_URL。
@@ -39,7 +29,6 @@ export const router = createRouter({
   basepath: import.meta.env.BASE_URL,
   parseSearch,
   stringifySearch,
-  history: inIframe ? createMemoryHistory() : undefined,
 })
 
 declare module '@tanstack/react-router' {

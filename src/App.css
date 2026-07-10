@@ -12,6 +12,12 @@
   overflow: auto;
 }
 
+.app-simple {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+  overflow: hidden;
+}
+
 /* ── 双面板布局（并排，窄屏堆叠） ── */
 
 @media (max-width: 720px) {
@@ -20,6 +26,12 @@
     grid-template-rows: auto;
     height: auto;
     overflow: initial;
+  }
+
+  .app-simple {
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
   }
 }
 
@@ -40,8 +52,11 @@
 }
 
 .panel-preview {
-  gap: 16px;
   min-width: 0;
+}
+
+.panel-preview-simple {
+  min-height: 0;
 }
 
 /* ── 高级设置（可折叠） ── */
@@ -87,17 +102,11 @@
   padding-top: 12px;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 /* 预设 + 配色 + 随机 + 角度固定为一行，避免角度旋钮被挤到下一行。 */
 .toolbar-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
   gap: 10px;
 }
 
@@ -136,7 +145,6 @@
 /* ── 预设下拉 ── */
 
 .preset-select {
-  flex: 1;
   min-width: 150px;
   height: 34px;
   border: 1px solid var(--border);
@@ -194,15 +202,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
-}
-
-.style-field {
-  width: 100%;
-  align-items: flex-start;
-}
-
-.style-field .style-toggle {
-  flex: 1;
 }
 
 .style-option {
@@ -388,9 +387,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
+  height: 24px;
   min-width: 40px;
-  padding: 0 12px;
+  padding: 0 8px;
   white-space: nowrap;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -466,7 +465,6 @@
 
 .icon-input-wrap {
   position: relative;
-  flex: 1;
   display: flex;
   align-items: center;
 }
@@ -528,7 +526,6 @@
 }
 
 .field-slider input[type='range'] {
-  flex: 1;
   min-width: 100px;
   accent-color: var(--accent);
   cursor: pointer;
@@ -576,6 +573,11 @@
   padding: 24px;
   border-radius: 12px;
   background-color: var(--canvas-bg);
+}
+
+.panel-preview-simple .canvas-area {
+  flex: 1;
+  min-height: 0;
 }
 
 .preview-wrap {
@@ -658,6 +660,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
+}
+
+.simple-footer {
+  display: flex;
   justify-content: center;
 }
 

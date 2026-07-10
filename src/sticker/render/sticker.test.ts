@@ -3,6 +3,7 @@ import {
   DEFAULT_STICKER_CONTROLS,
   normalizeStickerControls,
 } from '../config/defaults'
+import { LATIN_FONT_FAMILY } from '../config/fonts'
 import {
   classifyGrapheme,
   createStickerLayout,
@@ -11,7 +12,7 @@ import {
   measureSkewedGlyphBounds,
   splitGraphemes,
 } from './layout'
-import { fontSpec, usesFeatureFont } from './font'
+import { fontSpec, isChineseDominant, usesFeatureFont } from './font'
 import {
   dilateMaskRound,
   erodeMaskRound,
@@ -43,6 +44,11 @@ describe('splitGraphemes', () => {
 describe('usesFeatureFont', () => {
   it('uses feature fonts only for the intended scripts', () => {
     expect(usesFeatureFont('snh', '高')).toBe(true)
+    expect(usesFeatureFont('snh', '〇')).toBe(true)
+    expect(usesFeatureFont('snh', 'あ')).toBe(false)
+    expect(usesFeatureFont('snh', '가')).toBe(false)
+    expect(usesFeatureFont('snh', '㐀')).toBe(false)
+    expect(usesFeatureFont('snh', '𠀀')).toBe(false)
     // snh 西文/数字仅在中文占多数时随特色字体排版。
     expect(usesFeatureFont('snh', 'A', true)).toBe(true)
     expect(usesFeatureFont('snh', '1', true)).toBe(true)
@@ -57,18 +63,28 @@ describe('usesFeatureFont', () => {
   })
 })
 
+describe('isChineseDominant', () => {
+  it('counts common Han characters instead of the full CJK bucket', () => {
+    expect(isChineseDominant('勇攀A')).toBe(true)
+    expect(isChineseDominant('勇AAAAA')).toBe(false)
+    expect(isChineseDominant('あA')).toBe(false)
+    expect(isChineseDominant('가A')).toBe(false)
+    expect(isChineseDominant('𠀀A')).toBe(false)
+  })
+})
+
 describe('fontSpec', () => {
-  it('requests bold weight for feature and fallback glyphs', () => {
+  it('requests bold weight for feature and non-feature glyphs', () => {
     expect(fontSpec('snh', 64, '高')).toContain('normal bold 64px "DouyinSansBold"')
     expect(fontSpec('snh', 64, 'A', true)).toContain('normal bold 64px "DouyinSansBold"')
-    expect(fontSpec('snh', 64, 'A', false)).toContain('normal bold 64px "Inter", "PingFang SC"')
-    expect(fontSpec('snh', 64, '🙂', true)).toContain('normal bold 64px "Inter", "PingFang SC"')
+    expect(fontSpec('snh', 64, 'A', false)).toContain(`normal bold 64px "${LATIN_FONT_FAMILY}", "PingFang SC"`)
+    expect(fontSpec('snh', 64, '🙂', true)).toContain(`normal bold 64px "${LATIN_FONT_FAMILY}", "PingFang SC"`)
     expect(fontSpec('bs', 64, 'A')).toContain('normal bold 64px "YouSheBiaoTiHei"')
     expect(fontSpec('bs', 64, '1')).toContain('normal bold 64px "YouSheBiaoTiHei"')
   })
 
-  it('offers Inter as the Latin fallback before system fonts', () => {
-    expect(fontSpec('bs', 64, 'A')).toContain('"YouSheBiaoTiHei", "Inter", "PingFang SC"')
+  it('offers Inter Bold as the Latin font before system fonts', () => {
+    expect(fontSpec('bs', 64, 'A')).toContain(`"YouSheBiaoTiHei", "${LATIN_FONT_FAMILY}", "PingFang SC"`)
   })
 })
 
@@ -228,6 +244,26 @@ describe('createStickerLayout', () => {
 
     expect(layout.placements.map((p) => p.grapheme).join('')).toBe('foo_bar-v2.0/api')
     expect(new Set(layout.placements.map((p) => p.baselineY))).toEqual(new Set([-16]))
+  })
+
+  it('keeps surrounding spaces in layout bounds without drawing them', () => {
+    const compact = createStickerLayout('高', {
+      fontSize: 220,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+    const spaced = createStickerLayout(' 高 ', {
+      fontSize: 220,
+      letterSpacing: 9,
+      alternatingOffset: 16,
+      measureGlyph,
+    })
+
+    expect(spaced.placements.map((p) => p.grapheme)).toEqual(['高'])
+    expect(spaced.bounds.maxX - spaced.bounds.minX).toBeGreaterThan(
+      compact.bounds.maxX - compact.bounds.minX,
+    )
   })
 
   it('produces no height difference when alternatingOffset is zero (flat mode)', () => {

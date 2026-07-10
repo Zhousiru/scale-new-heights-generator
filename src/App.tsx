@@ -6,6 +6,27 @@ import { useStickerEditor } from './sticker/hooks/useStickerEditor'
 function App() {
   const sticker = useStickerEditor()
 
+  const previewPanel = (
+    <StickerPreviewPanel
+      preview={sticker.preview}
+      previewError={sticker.previewError}
+      isRendering={sticker.isRendering}
+      isExporting={sticker.isExporting}
+      copied={sticker.copied}
+      hasText={sticker.hasText}
+      shareUrl={sticker.shareUrl}
+      editorUrl={sticker.editorUrl}
+      simpleMode={sticker.isSimpleMode}
+      onCopyImage={() => void sticker.handleCopyImage()}
+      onExport={() => void sticker.handleExport()}
+      onCopyLink={() => void sticker.handleCopyLink()}
+    />
+  )
+
+  if (sticker.isSimpleMode) {
+    return <main className="app app-simple">{previewPanel}</main>
+  }
+
   return (
     <main className="app">
       <StickerControlsPanel
@@ -19,18 +40,7 @@ function App() {
         removeColor={sticker.removeColor}
         applyPresetText={sticker.applyPresetText}
       />
-      <StickerPreviewPanel
-        preview={sticker.preview}
-        previewError={sticker.previewError}
-        isRendering={sticker.isRendering}
-        isExporting={sticker.isExporting}
-        copied={sticker.copied}
-        hasText={sticker.hasText}
-        shareUrl={sticker.shareUrl}
-        onCopyImage={() => void sticker.handleCopyImage()}
-        onExport={() => void sticker.handleExport()}
-        onCopyLink={() => void sticker.handleCopyLink()}
-      />
+      {previewPanel}
     </main>
   )
 }

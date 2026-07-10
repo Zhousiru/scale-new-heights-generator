@@ -1,7 +1,8 @@
 import type { StickerFlavor } from '../config/defaults'
 import { fontSpec, usesFeatureFont } from './font'
 import { isEmojiGrapheme } from './layout'
-import { createCanvas, getContext } from './canvas'
+import { getContext } from './canvas'
+import { createRuntimeCanvas } from './runtime'
 import type {
   GlyphPlacement,
   GlyphTransform,
@@ -116,7 +117,7 @@ function drawSingleEmojiGlyph(
   const top = Math.floor(originY + placement.bounds.minY)
   const right = Math.ceil(originX + placement.bounds.maxX)
   const bottom = Math.ceil(originY + placement.bounds.maxY)
-  const emojiCanvas = createCanvas(right - left, bottom - top)
+  const emojiCanvas = createRuntimeCanvas(right - left, bottom - top)
   const emojiContext = getContext(emojiCanvas)
 
   resetAndPrepareTextContext(emojiContext, fontSize, flavor)

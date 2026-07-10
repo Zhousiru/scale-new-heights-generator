@@ -19,23 +19,35 @@ interface StickerPreviewPanelProps {
   copied: CopiedTarget | null
   hasText: boolean
   shareUrl: string
+  editorUrl: string
+  simpleMode?: boolean
   onCopyImage: () => void
   onExport: () => void
   onCopyLink: () => void
 }
 
-export function StickerPreviewPanel({
+interface PreviewCanvasProps {
+  preview: PreviewResult | null
+  previewError: string | null
+  isRendering: boolean
+  hasText: boolean
+}
+
+interface PreviewActionsProps {
+  copied: CopiedTarget | null
+  isExporting: boolean
+  shareUrl: string
+  onCopyImage: () => void
+  onExport: () => void
+  onCopyLink: () => void
+}
+
+function PreviewCanvas({
   preview,
   previewError,
   isRendering,
-  isExporting,
-  copied,
   hasText,
-  shareUrl,
-  onCopyImage,
-  onExport,
-  onCopyLink,
-}: StickerPreviewPanelProps) {
+}: PreviewCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -57,86 +69,163 @@ export function StickerPreviewPanel({
   }, [preview])
 
   return (
-    <section className="panel panel-preview">
-      <div className="canvas-area">
-        {hasText ? (
-          <div className="preview-wrap">
-            <canvas
-              ref={canvasRef}
-              className={isRendering && preview ? 'stale' : undefined}
-              style={{ display: preview ? 'block' : 'none' }}
-            />
-            {isRendering && <div className="thinking">正在思考</div>}
-          </div>
-        ) : (
-          <span className="placeholder">输入文字后预览</span>
-        )}
-        {previewError ? <p className="error">{previewError}</p> : null}
-      </div>
-
-      {hasText && (
-        <div className="actions">
-          <button
-            className="export-btn"
-            type="button"
-            onClick={() => onCopyImage()}
-          >
-            <Icon icon="tabler:copy" width={15} height={15} />
-            {copied === 'image' ? '已复制' : '复制图片'}
-          </button>
-          {IN_IFRAME ? (
-            <a
-              className="export-btn"
-              href={shareUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Icon icon="tabler:external-link" width={15} height={15} />
-              新标签页导出
-            </a>
-          ) : (
-            <button
-              className="export-btn"
-              type="button"
-              disabled={isExporting}
-              onClick={() => onExport()}
-            >
-              <Icon icon="tabler:download" width={15} height={15} />
-              {isExporting ? '导出中…' : '导出 PNG'}
-            </button>
-          )}
-          <button
-            className="export-btn"
-            type="button"
-            onClick={() => onCopyLink()}
-          >
-            <Icon icon="tabler:link" width={15} height={15} />
-            {copied === 'link' ? '已复制' : '复制链接'}
-          </button>
+    <div className="canvas-area">
+      {hasText ? (
+        <div className="preview-wrap">
+          <canvas
+            ref={canvasRef}
+            className={isRendering && preview ? 'stale' : undefined}
+            style={{ display: preview ? 'block' : 'none' }}
+          />
+          {isRendering && <div className="thinking">正在思考</div>}
         </div>
+      ) : (
+        <span className="placeholder">输入文字后预览</span>
       )}
+      {previewError ? <p className="error">{previewError}</p> : null}
+    </div>
+  )
+}
 
+function PreviewActions({
+  copied,
+  isExporting,
+  shareUrl,
+  onCopyImage,
+  onExport,
+  onCopyLink,
+}: PreviewActionsProps) {
+  return (
+    <div className="actions">
+      <button
+        className="export-btn"
+        type="button"
+        onClick={onCopyImage}
+      >
+        <Icon icon="tabler:copy" width={15} height={15} />
+        {copied === 'image' ? '已复制' : '复制图片'}
+      </button>
+      {IN_IFRAME ? (
+        <a
+          className="export-btn"
+          href={shareUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon icon="tabler:external-link" width={15} height={15} />
+          新标签页导出
+        </a>
+      ) : (
+        <button
+          className="export-btn"
+          type="button"
+          disabled={isExporting}
+          onClick={onExport}
+        >
+          <Icon icon="tabler:download" width={15} height={15} />
+          {isExporting ? '导出中…' : '导出 PNG'}
+        </button>
+      )}
+      <button
+        className="export-btn"
+        type="button"
+        onClick={onCopyLink}
+      >
+        <Icon icon="tabler:link" width={15} height={15} />
+        {copied === 'link' ? '已复制' : '复制链接'}
+      </button>
+    </div>
+  )
+}
+
+function SimpleFooter({ editorUrl }: { editorUrl: string }) {
+  return (
+    <div className="simple-footer">
+      <a className="export-btn" href={editorUrl} target="_top">
+        <Icon icon="tabler:edit" width={15} height={15} />
+        编辑
+      </a>
+    </div>
+  )
+}
+
+function PreviewFooter() {
+  return (
+    <div className="footer-links">
+      <a
+        className="footer-link"
+        href="http://go/^"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon icon="tabler:mountain" width={16} height={16} />
+        内网文档
+      </a>
+      <a
+        className="footer-link"
+        href="https://github.com/zhousiru/scale-new-heights-generator"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon icon="tabler:brand-github" width={16} height={16} />
+        GitHub
+      </a>
+    </div>
+  )
+}
+
+export function StickerPreviewPanel({
+  preview,
+  previewError,
+  isRendering,
+  isExporting,
+  copied,
+  hasText,
+  shareUrl,
+  editorUrl,
+  simpleMode = false,
+  onCopyImage,
+  onExport,
+  onCopyLink,
+}: StickerPreviewPanelProps) {
+  if (simpleMode) {
+    return (
+      <section className="panel panel-preview panel-preview-simple">
+        <PreviewCanvas
+          preview={preview}
+          previewError={previewError}
+          isRendering={isRendering}
+          hasText={hasText}
+        />
+        <SimpleFooter editorUrl={editorUrl} />
+      </section>
+    )
+  }
+
+  return (
+    <section className="panel panel-preview">
+      <PreviewCanvas
+        preview={preview}
+        previewError={previewError}
+        isRendering={isRendering}
+        hasText={hasText}
+      />
+      {hasText && (
+        <PreviewActions
+          copied={copied}
+          isExporting={isExporting}
+          shareUrl={shareUrl}
+          onCopyImage={onCopyImage}
+          onExport={onExport}
+          onCopyLink={onCopyLink}
+        />
+      )}
       {hasText && (
         <p className="usage-hint">
           发出后右键「添加为表情」再发，尺寸才正常。
         </p>
       )}
-
-      <div className="footer-links">
-        <a className="footer-link" href="http://go/^">
-          <Icon icon="tabler:mountain" width={16} height={16} />
-          内网文档
-        </a>
-        <a
-          className="footer-link"
-          href="https://github.com/zhousiru/scale-new-heights-generator"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Icon icon="tabler:brand-github" width={16} height={16} />
-          GitHub
-        </a>
-      </div>
+      <PreviewFooter />
     </section>
   )
 }

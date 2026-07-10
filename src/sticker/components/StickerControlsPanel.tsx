@@ -89,7 +89,7 @@ export function StickerControlsPanel({
         onChange={(e) => updateControl('text', e.target.value)}
       />
 
-      <div className="row toolbar-row">
+      <div className="toolbar-row">
         <div className="preset-cell">
           <select
             className="preset-select"
@@ -281,7 +281,7 @@ export function StickerControlsPanel({
               type="range"
               min={1}
               max={5}
-              step={0.5}
+              step={0.1}
               value={controls.antialiasScale}
               onChange={(e) =>
                 updateControl('antialiasScale', Number(e.target.value))

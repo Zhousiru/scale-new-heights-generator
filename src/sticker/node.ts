@@ -10,9 +10,19 @@ import {
   type StickerControls,
   type StickerFlavor,
 } from './config/defaults'
-import { canvasToPngBytes } from './render/canvas'
+import {
+  EMOJI_SYMBOL_FONT_DESCRIPTORS,
+  type EmojiSymbolFontKey,
+  LATIN_FONT_FAMILY,
+  LATIN_FONT_PACKAGE_PATH,
+} from './config/fonts'
+import { stickerFontDescriptor } from './render/font'
 import { renderSticker } from './render/sticker'
-import { setCanvasRuntime, type CanvasRuntime } from './render/runtime'
+import {
+  runtimeCanvasToPngBytes,
+  setCanvasRuntime,
+  type CanvasRuntime,
+} from './render/runtime'
 import type { RenderIcon } from './render/types'
 import { iconIdToUrl } from './utils/iconLoader'
 
@@ -41,14 +51,11 @@ interface NapiCanvasModule {
   loadImage: (source: Buffer | Uint8Array | string) => Promise<unknown>
 }
 
-export interface NodeStickerFontFiles {
+export interface NodeStickerFontFiles
+  extends Partial<Record<EmojiSymbolFontKey, string>> {
   snh?: string
   bs?: string
   inter?: string
-  appleColorEmoji?: string
-  appleSymbols?: string
-  notoColorEmoji?: string
-  notoSansSymbols2?: string
 }
 
 export interface RenderStickerNodeOptions {
@@ -65,23 +72,6 @@ export interface RenderStickerNodeOptions {
   /** 限制输出图片最长边。 */
   maxOutputEdge?: number
 }
-
-const FONT_FAMILY_BY_FLAVOR: Record<StickerFlavor, string> = {
-  snh: 'DouyinSansBold',
-  bs: 'YouSheBiaoTiHei',
-}
-
-const FONT_FILE_BY_FLAVOR: Record<StickerFlavor, string> = {
-  snh: 'DouyinSansBold.woff2',
-  bs: 'YouSheBiaoTiHei.ttf',
-}
-
-const FALLBACK_FONT_DESCRIPTORS = [
-  { key: 'appleColorEmoji', family: 'Apple Color Emoji', file: 'AppleColorEmoji.ttf', optional: true },
-  { key: 'appleSymbols', family: 'Apple Symbols', file: 'AppleSymbols.ttf', optional: true },
-  { key: 'notoColorEmoji', family: 'Noto Color Emoji', file: 'NotoColorEmoji.ttf', optional: true },
-  { key: 'notoSansSymbols2', family: 'Noto Sans Symbols 2', file: 'NotoSansSymbols2-Regular.ttf', optional: true },
-] as const
 
 const registeredFontPaths = new Set<string>()
 let defaultRuntimePromise: Promise<StickerGeneratorRuntime> | null = null
@@ -158,13 +148,26 @@ function resolveOptionalBundledFontFile(fileName: string): string {
   return ''
 }
 
-function resolveInterFontFile(): string {
+function resolveLatinFontFile(): string {
   try {
     const require = createRequire(import.meta.url)
-    return require.resolve('inter-ui/web-latin/Inter-Bold-subset.woff2')
+    return require.resolve(LATIN_FONT_PACKAGE_PATH)
   } catch {
     return ''
   }
+}
+
+function resolveOptionalFontFile(
+  explicitPath: string | undefined,
+  bundledFile: string | undefined,
+  systemFile: string | undefined,
+): string {
+  if (explicitPath) return explicitPath
+  if (bundledFile) {
+    const fontPath = resolveOptionalBundledFontFile(bundledFile)
+    if (fontPath) return fontPath
+  }
+  return systemFile && existsSync(systemFile) ? systemFile : ''
 }
 
 function registerStickerFontsWithRuntime(
@@ -174,39 +177,39 @@ function registerStickerFontsWithRuntime(
   if (!runtime.registerFont) return
 
   for (const flavor of STICKER_FLAVORS) {
-    const fontPath = fontFiles[flavor] ?? resolveBundledFontFile(FONT_FILE_BY_FLAVOR[flavor])
+    const descriptor = stickerFontDescriptor(flavor)
+    const fontPath = fontFiles[flavor] ?? resolveBundledFontFile(descriptor.file)
     if (registeredFontPaths.has(fontPath)) continue
 
-    const registered = runtime.registerFont(
-      fontPath,
-      FONT_FAMILY_BY_FLAVOR[flavor],
-    )
+    const registered = runtime.registerFont(fontPath, descriptor.family)
     if (!registered) {
       throw new Error(`注册字体失败：${fontPath}`)
     }
     registeredFontPaths.add(fontPath)
   }
 
-  // 西文 fallback：Inter（拉丁子集）。缺失时静默跳过，退回系统 sans-serif。
-  const interPath = fontFiles.inter ?? resolveInterFontFile()
-  if (interPath && !registeredFontPaths.has(interPath) && !runtime.hasFont?.('Inter')) {
-    if (runtime.registerFont(interPath, 'Inter')) {
+  // 西文字体：Inter Bold 拉丁子集。缺失时静默跳过，退回系统 sans-serif。
+  const interPath = fontFiles.inter ?? resolveLatinFontFile()
+  if (
+    interPath &&
+    !registeredFontPaths.has(interPath) &&
+    !runtime.hasFont?.(LATIN_FONT_FAMILY)
+  ) {
+    if (runtime.registerFont(interPath, LATIN_FONT_FAMILY)) {
       registeredFontPaths.add(interPath)
     } else {
-      console.warn('[sticker] fallback 字体注册失败：Inter')
+      console.warn(`[sticker] 字体注册失败：${LATIN_FONT_FAMILY}`)
     }
   }
 
-  for (const descriptor of FALLBACK_FONT_DESCRIPTORS) {
+  for (const descriptor of EMOJI_SYMBOL_FONT_DESCRIPTORS) {
     if (runtime.hasFont?.(descriptor.family)) continue
-    const explicitPath = fontFiles[descriptor.key]
-    const fontPath = explicitPath ?? resolveOptionalBundledFontFile(descriptor.file)
-    if (!fontPath) {
-      if (!descriptor.optional) {
-        throw new Error(`找不到 fallback 字体文件 ${descriptor.file}。`)
-      }
-      continue
-    }
+    const fontPath = resolveOptionalFontFile(
+      fontFiles[descriptor.key],
+      'bundledFile' in descriptor ? descriptor.bundledFile : undefined,
+      'systemFile' in descriptor ? descriptor.systemFile : undefined,
+    )
+    if (!fontPath) continue
     if (registeredFontPaths.has(fontPath)) continue
 
     const registered = runtime.registerFont(fontPath, descriptor.family)
@@ -301,7 +304,7 @@ export class StickerGenerator {
         : normalizeAntialiasScale(options.antialiasScale),
       maxOutputEdge: options.maxOutputEdge,
     })
-    return await canvasToPngBytes(result.canvas)
+    return await runtimeCanvasToPngBytes(result.canvas)
   }
 
   async renderBuffer(
@@ -312,4 +315,3 @@ export class StickerGenerator {
     return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   }
 }
-

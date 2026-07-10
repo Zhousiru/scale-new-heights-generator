@@ -27,8 +27,6 @@ import {
   thresholdAlphaMask,
 } from './mask'
 import {
-  canvasToPngBlob,
-  createCanvas,
   cropResizePadCanvas,
   extractAlphaChannel,
   getContext,
@@ -38,6 +36,7 @@ import {
   gradientExtentFromMask,
 } from './gradient'
 import { maskToCanvas, paintMask, createPaintBuffer } from './paint'
+import { createRuntimeCanvas } from './runtime'
 import {
   configureTextContext,
   computeIconBox,
@@ -52,6 +51,7 @@ import {
   IDENTITY_GLYPH_TRANSFORM,
   type GradientExtent,
   type GlyphTransform,
+  type OpaqueBounds,
   type RenderIcon,
   type RenderResult,
 } from './types'
@@ -81,8 +81,8 @@ export async function renderSticker(
   icon: RenderIcon | null = null,
   options: RenderStickerOptions = {},
 ): Promise<RenderResult> {
-  const trimmedText = controls.text.trim()
-  if (trimmedText.length === 0) {
+  const text = controls.text
+  if (text.length === 0) {
     throw new Error('Text is required for sticker export.')
   }
 
@@ -106,8 +106,8 @@ export async function renderSticker(
     ? iconGlyphTransformFrom(baseTransform)
     : IDENTITY_GLYPH_TRANSFORM
 
-  const chineseDominant = isChineseDominant(trimmedText)
-  const layout = createStickerLayout(trimmedText, {
+  const chineseDominant = isChineseDominant(text)
+  const layout = createStickerLayout(text, {
     fontSize: renderControls.fontSize,
     letterSpacing: renderControls.letterSpacing,
     lineHeight: renderControls.lineHeight,
@@ -142,7 +142,7 @@ export async function renderSticker(
   const originX = padding - contentBounds.minX
   const originY = padding - contentBounds.minY
 
-  const maskCanvas = createCanvas(workingWidth, workingHeight)
+  const maskCanvas = createRuntimeCanvas(workingWidth, workingHeight)
   const maskContext = getContext(maskCanvas)
   resetAndPrepareTextContext(
     maskContext,
@@ -201,7 +201,7 @@ export async function renderSticker(
   //   • bs  / 字节范  (优设标题黑)：彩色渐变字形，直接由更深的同色系轮廓包裹（无白色描边）。
   // 每一条带都是字形蒙版的圆角 Minkowski 膨胀；外层带的内轮廓会做泛洪填充，
   // 使细小的孔洞保持实心。
-  const outputCanvas = createCanvas(workingWidth, workingHeight)
+  const outputCanvas = createRuntimeCanvas(workingWidth, workingHeight)
   const outputContext = getContext(outputCanvas)
 
   // 把用户颜色规整为实际停靠点（单色自动补出同色系深色，方向由角度旋钮控制）。
@@ -426,14 +426,28 @@ export async function renderSticker(
     options.maxOutputEdge ?? Math.round(MAX_EXPORT_EDGE * outputScale),
     controls.padding.x,
     controls.padding.y,
+    boundsToCropBounds(contentBounds, originX, originY),
   )
 
   return {
     canvas: exportCanvas,
     width: exportCanvas.width,
     height: exportCanvas.height,
-    toBlob: () => canvasToPngBlob(exportCanvas),
+    toBlob: () => exportCanvas.convertToBlob({ type: 'image/png' }),
     toBitmap: () => exportCanvas.transferToImageBitmap(),
+  }
+}
+
+function boundsToCropBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  originX: number,
+  originY: number,
+): OpaqueBounds {
+  return {
+    left: Math.floor(originX + bounds.minX),
+    top: Math.floor(originY + bounds.minY),
+    right: Math.ceil(originX + bounds.maxX) - 1,
+    bottom: Math.ceil(originY + bounds.maxY) - 1,
   }
 }
 

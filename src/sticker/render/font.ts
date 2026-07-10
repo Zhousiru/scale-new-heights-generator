@@ -1,5 +1,12 @@
 import type { StickerFlavor } from '../config/defaults'
-import { createCanvas, getContext } from './canvas'
+import { CANVAS_FONT_FAMILIES } from '../config/fonts'
+import { getContext } from './canvas'
+import {
+  isCommonHanGrapheme,
+  isWesternWordGrapheme,
+} from './characters'
+import { loadFontFace } from './fontFace'
+import { createRuntimeCanvas } from './runtime'
 import {
   type GlyphMeasurement,
   type GlyphTransform,
@@ -7,11 +14,9 @@ import {
 
 const FONT_STYLE = 'normal'
 const FONT_SAMPLE_TEXT = '勇攀高峰测试Aa0123456789'
-const HAN_PATTERN = /\p{Script=Han}/u
-const LATIN_PATTERN = /\p{Script=Latin}/u
-const DIGIT_PATTERN = /[0-9]/u
+const CHINESE_DOMINANT_MIN_RATIO = 0.2
 
-interface FontDescriptor {
+export interface StickerFontDescriptor {
   family: string
   weight: string
   file: string
@@ -25,7 +30,7 @@ interface FontDescriptor {
   transform: GlyphTransform
 }
 
-const FONT_REGISTRY: Record<StickerFlavor, FontDescriptor> = {
+const FONT_REGISTRY: Record<StickerFlavor, StickerFontDescriptor> = {
   snh: {
     family: 'DouyinSansBold',
     weight: 'bold',
@@ -56,26 +61,33 @@ const FONT_REGISTRY: Record<StickerFlavor, FontDescriptor> = {
   },
 }
 
+export function stickerFontDescriptor(
+  flavor: StickerFlavor,
+): StickerFontDescriptor {
+  return FONT_REGISTRY[flavor]
+}
+
 // 每种字体的字形整形参数（缩放 + 旋转 + 斜切）。返回 FONT_REGISTRY 中手动精调
 // 的旋钮。只整形文字字形；Emoji 保持直立以避免描边尖峰。
 export function fontGlyphTransform(flavor: StickerFlavor): GlyphTransform {
-  return FONT_REGISTRY[flavor].transform
+  return stickerFontDescriptor(flavor).transform
 }
 
 export function effectiveOutlineWidth(flavor: StickerFlavor, width: number): number {
-  return width * FONT_REGISTRY[flavor].outlineScale
+  return width * stickerFontDescriptor(flavor).outlineScale
 }
 
-// 判断整段文本是否以中文为主。用于 snh：中文占多数时，少量英文数字随抖音美好体
-// 一起排版更协调；中文很少（或纯西文）时，西文交给 Inter 以获得更现代的观感。
+// 判断整段文本是否以中文为主。用于 snh：中文比例足够高时，少量英文数字随抖音
+// 美好体排版更协调；中文比例低时，西文交给 Inter 以获得更现代的观感。
 export function isChineseDominant(text: string): boolean {
   let han = 0
   let latin = 0
   for (const char of text) {
-    if (HAN_PATTERN.test(char)) han += 1
-    else if (LATIN_PATTERN.test(char) || DIGIT_PATTERN.test(char)) latin += 1
+    if (isCommonHanGrapheme(char)) han += 1
+    else if (isWesternWordGrapheme(char)) latin += 1
   }
-  return han > 0 && han >= latin
+  const textCount = han + latin
+  return han > 0 && textCount > 0 && han / textCount >= CHINESE_DOMINANT_MIN_RATIO
 }
 
 export function usesFeatureFont(
@@ -84,14 +96,14 @@ export function usesFeatureFont(
   chineseDominant = false,
 ): boolean {
   if (!grapheme) return false
-  if (HAN_PATTERN.test(grapheme)) return true
+  if (isCommonHanGrapheme(grapheme)) return true
   // 优设标题黑字库含完整中英文与数字，西文与数字全部走特色字体。
   if (flavor === 'bs') {
-    return LATIN_PATTERN.test(grapheme) || DIGIT_PATTERN.test(grapheme)
+    return isWesternWordGrapheme(grapheme)
   }
   // 抖音美好体西文字形偏窄：仅在中文占多数时用它承载英文数字，
-  // 中文很少时西文落到 Inter fallback。
-  if (chineseDominant && (LATIN_PATTERN.test(grapheme) || DIGIT_PATTERN.test(grapheme))) {
+  // 中文很少时西文落到 Inter。
+  if (chineseDominant && isWesternWordGrapheme(grapheme)) {
     return true
   }
   return false
@@ -103,17 +115,10 @@ export function fontSpec(
   grapheme?: string,
   chineseDominant = false,
 ): string {
-  const { family, weight } = FONT_REGISTRY[flavor]
+  const { family, weight } = stickerFontDescriptor(flavor)
   const families = [
     ...(usesFeatureFont(flavor, grapheme, chineseDominant) ? [`"${family}"`] : []),
-    // Inter 只含拉丁字形，作为西文 fallback 排在系统中文字体之前；中文自然落到 PingFang。
-    '"Inter"',
-    '"PingFang SC"',
-    '"Apple Color Emoji"',
-    '"Apple Symbols"',
-    '"Noto Color Emoji"',
-    '"Noto Sans Symbols 2"',
-    'sans-serif',
+    ...CANVAS_FONT_FAMILIES.map((name) => `"${name}"`),
   ].join(', ')
   return `${FONT_STYLE} ${weight} ${fontSize}px ${families}`
 }
@@ -132,31 +137,22 @@ export function iconGlyphTransformFrom(baseTransform: GlyphTransform): GlyphTran
 export async function ensureStickerFontLoaded(
   flavor: StickerFlavor = 'snh',
 ): Promise<void> {
-  if (typeof FontFace === 'undefined') return
-
   let promise = fontLoadPromises.get(flavor)
   if (!promise) {
-    const fonts: FontFaceSet | undefined =
-      typeof document !== 'undefined'
-        ? document.fonts
-        : (globalThis as unknown as { fonts?: FontFaceSet }).fonts
-
-    if (!fonts) return
-
     const descriptor = FONT_REGISTRY[flavor]
     const spec = `${FONT_STYLE} ${descriptor.weight} 16px "${descriptor.family}"`
-    const fontFace = new FontFace(
-      descriptor.family,
-      `url(${import.meta.env.BASE_URL}${descriptor.file})`,
-      { style: FONT_STYLE, weight: descriptor.weight },
-    )
 
-    promise = fontFace
-      .load()
-      .then((loaded) => {
-        fonts.add(loaded)
-        return fonts.load(spec, FONT_SAMPLE_TEXT).then(() => undefined)
-      })
+    promise = loadFontFace({
+      family: descriptor.family,
+      source: `url(${import.meta.env.BASE_URL}${descriptor.file})`,
+      style: FONT_STYLE,
+      weight: descriptor.weight,
+      verify: {
+        spec,
+        text: FONT_SAMPLE_TEXT,
+      },
+    })
+      .then(() => undefined)
       .catch((error: unknown) => {
         fontLoadPromises.delete(flavor)
         throw error
@@ -173,7 +169,7 @@ export function measureGlyphWithCanvas(
   flavor: StickerFlavor,
   chineseDominant = false,
 ): GlyphMeasurement {
-  const canvas = measurementCanvas ?? createCanvas(1, 1)
+  const canvas = measurementCanvas ?? createRuntimeCanvas(1, 1)
   measurementCanvas = canvas
   const context = getContext(canvas)
   context.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)

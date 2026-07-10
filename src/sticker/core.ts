@@ -1,7 +1,4 @@
 export {
-  canvasToPngBytes,
-} from './render/canvas'
-export {
   renderSticker,
   type RenderStickerOptions,
 } from './render/sticker'

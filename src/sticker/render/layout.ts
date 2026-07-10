@@ -1,6 +1,11 @@
 import type { StickerFlavor } from '../config/defaults'
 import { isChineseDominant } from './font'
 import {
+  isCjkGrapheme,
+  isWesternWordGrapheme,
+  isWordSymbolGrapheme,
+} from './characters'
+import {
   IDENTITY_GLYPH_TRANSFORM,
   type Bounds,
   type GlyphMeasurement,
@@ -28,10 +33,6 @@ export function getAlternatingOffset(index: number, amplitude: number): number {
 
 export type GraphemeKind = 'space' | 'cjk' | 'word' | 'other'
 
-const CJK_PATTERN =
-  /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/u
-const WESTERN_PATTERN = /\p{Script=Latin}|\p{Number}/u
-const WORD_SYMBOL_PATTERN = /['’._:+/@#&%-]/u
 // 图形类 Emoji（含 ZWJ 连字序列 / 变体选择符）。它们以接近正方形的彩色字形绘制，
 // 若斜切成平行四边形会产生尖角，描边膨胀会把这些尖角变成杂散“尖峰”；因此保持直立。
 // eslint-disable-next-line no-misleading-character-class
@@ -46,8 +47,8 @@ export function isEmojiGrapheme(grapheme: string): boolean {
 // 而连续的西文/数字/词内符号合并为一个词单元，使词内每个字符共享同一高度。
 export function classifyGrapheme(grapheme: string): GraphemeKind {
   if (/^\s+$/u.test(grapheme)) return 'space'
-  if (CJK_PATTERN.test(grapheme)) return 'cjk'
-  if (WESTERN_PATTERN.test(grapheme) || WORD_SYMBOL_PATTERN.test(grapheme)) {
+  if (isCjkGrapheme(grapheme)) return 'cjk'
+  if (isWesternWordGrapheme(grapheme) || isWordSymbolGrapheme(grapheme)) {
     return 'word'
   }
   return 'other'
@@ -120,6 +121,10 @@ export function createStickerLayout(
     const shiftX = line.bounds
       ? anchorLeft + (maxWidth - (line.bounds.maxX - line.bounds.minX)) / 2 - line.bounds.minX
       : 0
+    if (line.bounds) {
+      const shiftedBounds = offsetBounds(line.bounds, shiftX, offsetY)
+      bounds = bounds ? mergeBounds(bounds, shiftedBounds) : shiftedBounds
+    }
 
     for (const placement of line.placements) {
       const shifted: GlyphPlacement = {
@@ -131,7 +136,6 @@ export function createStickerLayout(
         skew: placement.skew,
       }
       placements.push(shifted)
-      bounds = bounds ? mergeBounds(bounds, shifted.bounds) : shifted.bounds
     }
   })
 
@@ -177,7 +181,18 @@ function layoutLine(
 
     if (kind === 'space') {
       const measurement = options.measureGlyph(grapheme, options.fontSize)
-      cursorX += Math.max(0, measurement.advanceWidth * SPACE_ADVANCE_SCALE)
+      const advanceWidth = Math.max(
+        0,
+        measurement.advanceWidth * SPACE_ADVANCE_SCALE,
+      )
+      const spaceBounds = {
+        minX: cursorX,
+        minY: -measurement.ascent,
+        maxX: cursorX + advanceWidth,
+        maxY: measurement.descent,
+      }
+      bounds = bounds ? mergeBounds(bounds, spaceBounds) : spaceBounds
+      cursorX += advanceWidth
       prevKind = 'space'
       return
     }

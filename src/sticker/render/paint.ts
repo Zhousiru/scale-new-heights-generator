@@ -1,5 +1,6 @@
-import { createCanvas, getContext } from './canvas'
 import { createAntialiasedAlpha } from './mask'
+import { createRuntimeCanvas } from './runtime'
+import { getContext } from './canvas'
 import type { BinaryMask } from './types'
 
 /**
@@ -12,7 +13,7 @@ export function maskToCanvas(
   precomputedOutsideDT?: Float32Array,
   precomputedInsideDT?: Float32Array,
 ): OffscreenCanvas {
-  const baseCanvas = createCanvas(mask.width, mask.height)
+  const baseCanvas = createRuntimeCanvas(mask.width, mask.height)
   const baseContext = getContext(baseCanvas)
   const imageData = baseContext.createImageData(mask.width, mask.height)
   const alpha =
@@ -45,7 +46,7 @@ export function createPaintBuffer(
   width: number,
   height: number,
 ): { canvas: OffscreenCanvas; context: OffscreenCanvasRenderingContext2D } {
-  const canvas = createCanvas(width, height)
+  const canvas = createRuntimeCanvas(width, height)
   const context = getContext(canvas)
   return { canvas, context }
 }
@@ -80,7 +81,7 @@ export function paintMask(
     temporaryContext.filter = 'none'
     temporaryContext.clearRect(0, 0, temporaryCanvas.width, temporaryCanvas.height)
   } else {
-    temporaryCanvas = createCanvas(maskCanvas.width, maskCanvas.height)
+    temporaryCanvas = createRuntimeCanvas(maskCanvas.width, maskCanvas.height)
     temporaryContext = getContext(temporaryCanvas)
   }
 
