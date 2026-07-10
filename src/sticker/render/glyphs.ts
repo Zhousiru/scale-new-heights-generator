@@ -135,7 +135,7 @@ function drawSingleEmojiGlyph(
   context.drawImage(emojiCanvas, left, top)
 }
 
-function drawPlacedGlyphs(
+export function drawPlacedGlyphs(
   context: OffscreenCanvasRenderingContext2D,
   layout: StickerLayout,
   originX: number,

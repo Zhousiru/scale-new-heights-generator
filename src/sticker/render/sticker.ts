@@ -17,24 +17,13 @@ import {
   mergeBounds,
 } from './layout'
 import {
-  computeSquaredDistanceTransform,
-  dilateMaskRound,
-  erodeMaskRound,
-  fillEnclosedRegions,
-  invertMask,
-  subtractMask,
-  thresholdAlphaMask,
-} from './mask'
-import {
   cropResizePadCanvas,
-  extractAlphaChannel,
   getContext,
 } from './canvas'
 import {
   createGradient,
-  gradientExtentFromMask,
 } from './gradient'
-import { maskToCanvas, paintMask, createPaintBuffer } from './paint'
+import { fillEnclosedRegionsCanvas, gradientExtentFromCanvas } from './paint'
 import { createRuntimeCanvas } from './runtime'
 import {
   configureTextContext,
@@ -43,12 +32,11 @@ import {
   drawEmojiGlyphs,
   drawFilledGlyphs,
   drawIcon,
+  drawPlacedGlyphs,
   isTextPlacement,
-  resetAndPrepareTextContext,
 } from './glyphs'
 import {
   IDENTITY_GLYPH_TRANSFORM,
-  type GradientExtent,
   type GlyphTransform,
   type OpaqueBounds,
   type RenderIcon,
@@ -60,9 +48,6 @@ import {
 // 文字尺寸保持稳定，导出图片（以及预览的棋盘格背景）会真实反映描边厚度的变化。
 const EXPORT_TEXT_HEIGHT = 150
 const MAX_EXPORT_EDGE = 2048
-const ENVELOPE_ANTIALIAS = 1.1
-const OUTLINE_ANTIALIAS = 0.9
-const ALPHA_THRESHOLD = 16
 const BYTE_OUTLINE_DARKEN = 0.4
 const BYTE_FOREGROUND_LIGHTEN = 0.4
 
@@ -139,232 +124,164 @@ export async function renderSticker(
   const originX = padding - contentBounds.minX
   const originY = padding - contentBounds.minY
 
-  const maskCanvas = createRuntimeCanvas(workingWidth, workingHeight)
-  const maskContext = getContext(maskCanvas)
-  resetAndPrepareTextContext(
-    maskContext,
-    renderControls.fontSize,
-    renderControls.flavor,
-  )
-  maskContext.fillStyle = '#ffffff'
-  // 前景蒙版只纳入非 Emoji 字形与图标，用于后续白字/渐变字重着色。
-  drawFilledGlyphs(maskContext, layout, originX, originY, isTextPlacement)
-  if (iconBitmap && iconBox) {
-    drawIcon(
-      maskContext,
-      iconBitmap,
-      iconBox,
-      originX,
-      originY,
-      iconGlyphTransform,
-    )
-  }
-
-  const foregroundMask = thresholdAlphaMask(
-    extractAlphaChannel(
-      maskContext.getImageData(0, 0, workingWidth, workingHeight).data,
-    ),
-    workingWidth,
-    workingHeight,
-    ALPHA_THRESHOLD,
-  )
-
-  const hasEmoji = layout.placements.some((placement) =>
-    isEmojiGrapheme(placement.grapheme),
-  )
-  let shapeMask = foregroundMask
-  if (hasEmoji) {
-    // 形状蒙版在同一张画布上追加 Emoji，用于生成包体/描边；Emoji 只拿干净
-    // alpha 参与外轮廓，本体稍后仍以原生彩色顶层叠加。
-    drawEmojiGlyphs(
-      maskContext,
-      layout,
-      renderControls.fontSize,
-      renderControls.flavor,
-      originX,
-      originY,
-    )
-    shapeMask = thresholdAlphaMask(
-      extractAlphaChannel(
-        maskContext.getImageData(0, 0, workingWidth, workingHeight).data,
-      ),
-      workingWidth,
-      workingHeight,
-      ALPHA_THRESHOLD,
-    )
-  }
-  // 两种展示字面使用不同的配色模型，分别对应各自的源表情包：
-  //   • snh / 勇攀高峰 (抖音美好体)：白色字形置于彩色渐变包体内，带较深的边缘轮廓。
-  //   • bs  / 字节范  (优设标题黑)：彩色渐变字形，直接由更深的同色系轮廓包裹（无白色描边）。
-  // 每一条带都是字形蒙版的圆角 Minkowski 膨胀；外层带的内轮廓会做泛洪填充，
-  // 使细小的孔洞保持实心。
   const outputCanvas = createRuntimeCanvas(workingWidth, workingHeight)
   const outputContext = getContext(outputCanvas)
 
   // 把用户颜色规整为实际停靠点（单色自动补出同色系深色，方向由角度旋钮控制）。
   const gradientStops = resolveGradientStops(renderControls.envelope.colors)
 
-  const paintFamilyGradient = (
+  // ---------- Helper: draw non-emoji glyphs + icon with stroke and fill ----------
+  const drawStrokeAndFill = (
     context: OffscreenCanvasRenderingContext2D,
-    stops: string[],
-    extent: GradientExtent,
+    lineWidth: number,
+    ox = originX,
+    oy = originY,
   ) => {
-    context.fillStyle = createGradient(
-      context,
-      renderControls.envelope.gradientAngle,
-      stops,
-      extent,
-    )
-    context.fillRect(0, 0, workingWidth, workingHeight)
+    context.lineWidth = lineWidth
+    context.lineJoin = 'round'
+    context.lineCap = 'round'
+    context.miterLimit = 2
+    configureTextContext(context, renderControls.fontSize, renderControls.flavor)
+    // draw text glyphs with stroke + fill
+    drawPlacedGlyphs(context, layout, ox, oy, (ctx, grapheme) => {
+      ctx.strokeText(grapheme, 0, 0)
+      ctx.fillText(grapheme, 0, 0)
+    }, isTextPlacement)
+    // draw icon (if present, non-colored icons participate in outline)
+    if (iconBitmap && iconBox) {
+      drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
+    }
+    // draw emoji glyphs for shape contribution
+    if (layout.placements.some((p) => isEmojiGrapheme(p.grapheme))) {
+      drawEmojiGlyphs(context, layout, renderControls.fontSize, renderControls.flavor, ox, oy)
+    }
   }
 
-  const paintSolid = (
+  // Helper: draw text glyphs fill-only
+  const drawFillOnly = (
     context: OffscreenCanvasRenderingContext2D,
-    color: string,
+    ox = originX,
+    oy = originY,
   ) => {
-    context.fillStyle = color
-    context.fillRect(0, 0, workingWidth, workingHeight)
+    configureTextContext(context, renderControls.fontSize, renderControls.flavor)
+    drawFilledGlyphs(context, layout, ox, oy, isTextPlacement)
+    if (iconBitmap && iconBox) {
+      drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
+    }
+  }
+
+  // Helper: create a solid filled shape canvas (stroke+fill+fillEnclosed)
+  const createSolidShapeCanvas = (lineWidth: number): OffscreenCanvas => {
+    const canvas = createRuntimeCanvas(workingWidth, workingHeight)
+    const ctx = getContext(canvas)
+    ctx.fillStyle = '#ffffff'
+    ctx.strokeStyle = '#ffffff'
+    drawStrokeAndFill(ctx, lineWidth)
+    fillEnclosedRegionsCanvas(canvas)
+    return canvas
   }
 
   if (renderControls.flavor === 'snh') {
-    // 白色字形置于彩色包体内并带较深的边缘轮廓，另在字形下方叠加 multiply 混合
-    // 阴影，使白字读起来像是浮在彩色主体之上（匹配源表情包）。
     const bandWidth = effectiveOutlineWidth(
       renderControls.flavor,
       renderControls.envelope.outlineStrokeWidth,
     )
 
-    // ① DT 缓存复用：shapeMask 的 DT 复用于 dilateMaskRound。
-    const shapeMaskDT = computeSquaredDistanceTransform(shapeMask)
-    const foregroundMaskDT = computeSquaredDistanceTransform(foregroundMask)
-    const foregroundMaskInvertedDT = computeSquaredDistanceTransform(
-      invertMask(foregroundMask),
-    )
-
-    const envelopeMask = fillEnclosedRegions(
-      dilateMaskRound(shapeMask, bandWidth, shapeMaskDT),
-    )
-    // envelopeMask 的反转 DT 用于 erodeMaskRound
-    const envelopeMaskInvertedDT = computeSquaredDistanceTransform(invertMask(envelopeMask))
-    const edgeMask = subtractMask(
-      envelopeMask,
-      erodeMaskRound(envelopeMask, renderControls.envelope.edgeWidth, envelopeMaskInvertedDT),
-    )
-
-    // ① maskToCanvas 复用预计算 DT
-    const envelopeMaskDT = computeSquaredDistanceTransform(envelopeMask)
-    const envelopeMaskCanvas = maskToCanvas(
-      envelopeMask, ENVELOPE_ANTIALIAS, envelopeMaskDT, envelopeMaskInvertedDT,
-    )
-    const edgeMaskDT = computeSquaredDistanceTransform(edgeMask)
-    const edgeMaskInvertedDT = computeSquaredDistanceTransform(invertMask(edgeMask))
-    const edgeMaskCanvas = maskToCanvas(
-      edgeMask, OUTLINE_ANTIALIAS, edgeMaskDT, edgeMaskInvertedDT,
-    )
-    const glyphMaskCanvas = maskToCanvas(
-      foregroundMask, OUTLINE_ANTIALIAS, foregroundMaskDT, foregroundMaskInvertedDT,
-    )
-    const envelopeGradientExtent = gradientExtentFromMask(
-      envelopeMask,
+    // Layer 1: Envelope — dilated outline filled with gradient
+    const envelopeCanvas = createSolidShapeCanvas(bandWidth * 2)
+    const envelopeCtx = getContext(envelopeCanvas)
+    const envelopeGradientExtent = gradientExtentFromCanvas(
+      envelopeCanvas,
       renderControls.envelope.gradientAngle,
     )
-
-    // ③ 创建可复用的 paint buffer
-    const buffer = createPaintBuffer(workingWidth, workingHeight)
-
-    // 彩色渐变主体。
-    paintMask(outputContext, envelopeMaskCanvas, (context) =>
-      paintFamilyGradient(context, gradientStops, envelopeGradientExtent),
-      1, 'source-over', buffer,
+    // Color with gradient via source-in compositing
+    envelopeCtx.globalCompositeOperation = 'source-in'
+    envelopeCtx.fillStyle = createGradient(
+      envelopeCtx, renderControls.envelope.gradientAngle,
+      gradientStops, envelopeGradientExtent,
     )
-    // 较深的边缘轮廓，用 multiply 混合使其读起来像阴影化的边框。
-    paintMask(
-      outputContext,
-      edgeMaskCanvas,
-      (context) =>
-        paintFamilyGradient(
-          context,
-          gradientStops.map((color) => darken(color, 0.45)),
-          envelopeGradientExtent,
-        ),
-      renderControls.envelope.edgeOpacity,
-      'multiply',
-      buffer,
-    )
-    // 内阴影：将字形（含前缀图标）偏移并模糊后裁剪到包体内、以 multiply 混入，
-    // 压暗字母正下方的主体。图标与文字同属白色前景，需一并投影以保持一致。
-    if (renderControls.shadow.opacity > 0) {
-      paintMask(
-        outputContext,
-        envelopeMaskCanvas,
-        (context) => {
-          context.fillStyle = renderControls.shadow.color
-          context.filter = `blur(${renderControls.shadow.blur}px)`
-          configureTextContext(
-            context,
-            renderControls.fontSize,
-            renderControls.flavor,
-          )
-          drawFilledGlyphs(
-            context,
-            layout,
-            originX + renderControls.shadow.offsetX,
-            originY + renderControls.shadow.offsetY,
-          )
-          if (iconBitmap && iconBox) {
-            // 图标 drawImage 不吃 fillStyle；直接把图标 alpha 画进当前 paint buffer，
-            // 再用 source-in 统一染成阴影色，避免额外分配一张全尺寸图标阴影画布。
-            drawIcon(
-              context,
-              iconBitmap,
-              iconBox,
-              originX + renderControls.shadow.offsetX,
-              originY + renderControls.shadow.offsetY,
-              iconGlyphTransform,
-            )
-          }
-          context.globalCompositeOperation = 'source-in'
-          context.filter = 'none'
-          context.fillStyle = renderControls.shadow.color
-          context.fillRect(0, 0, workingWidth, workingHeight)
-        },
-        renderControls.shadow.opacity,
-        'multiply',
-        buffer,
+    envelopeCtx.fillRect(0, 0, workingWidth, workingHeight)
+    outputContext.drawImage(envelopeCanvas, 0, 0)
+
+    // Layer 2: Edge band — darkened ring between outer and inner boundary
+    if (renderControls.envelope.edgeWidth > 0 && renderControls.envelope.edgeOpacity > 0) {
+      const edgeCanvas = createSolidShapeCanvas(bandWidth * 2)
+      const edgeCtx = getContext(edgeCanvas)
+      // Build inner boundary on a SEPARATE canvas (also needs fillEnclosedRegions)
+      const innerCanvas = createSolidShapeCanvas(
+        Math.max(0, (bandWidth - renderControls.envelope.edgeWidth) * 2),
       )
+      // Subtract inner from outer to leave only the edge ring
+      edgeCtx.globalCompositeOperation = 'destination-out'
+      edgeCtx.drawImage(innerCanvas, 0, 0)
+      // Color the edge ring with darkened gradient
+      edgeCtx.globalCompositeOperation = 'source-in'
+      edgeCtx.fillStyle = createGradient(
+        edgeCtx, renderControls.envelope.gradientAngle,
+        gradientStops.map((color) => darken(color, 0.45)),
+        envelopeGradientExtent,
+      )
+      edgeCtx.fillRect(0, 0, workingWidth, workingHeight)
+      // Composite edge onto output with multiply blend
+      outputContext.save()
+      outputContext.globalAlpha = renderControls.envelope.edgeOpacity
+      outputContext.globalCompositeOperation = 'multiply'
+      outputContext.drawImage(edgeCanvas, 0, 0)
+      outputContext.restore()
     }
-    // 顶层白色字形。
-    paintMask(outputContext, glyphMaskCanvas, (context) =>
-      paintSolid(context, '#ffffff'),
-      1, 'source-over', buffer,
-    )
+
+    // Layer 3: Inner shadow
+    if (renderControls.shadow.opacity > 0) {
+      const shadowCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+      const shadowCtx = getContext(shadowCanvas)
+      // Draw blurred shadow content first
+      shadowCtx.fillStyle = renderControls.shadow.color
+      shadowCtx.filter = `blur(${renderControls.shadow.blur}px)`
+      configureTextContext(shadowCtx, renderControls.fontSize, renderControls.flavor)
+      drawFilledGlyphs(
+        shadowCtx, layout,
+        originX + renderControls.shadow.offsetX,
+        originY + renderControls.shadow.offsetY,
+      )
+      if (iconBitmap && iconBox) {
+        drawIcon(
+          shadowCtx, iconBitmap, iconBox,
+          originX + renderControls.shadow.offsetX,
+          originY + renderControls.shadow.offsetY,
+          iconGlyphTransform,
+        )
+      }
+      shadowCtx.globalCompositeOperation = 'source-in'
+      shadowCtx.filter = 'none'
+      shadowCtx.fillStyle = renderControls.shadow.color
+      shadowCtx.fillRect(0, 0, workingWidth, workingHeight)
+      // Clip shadow to the envelope shape
+      const clipCanvas = createSolidShapeCanvas(bandWidth * 2)
+      shadowCtx.globalCompositeOperation = 'destination-in'
+      shadowCtx.drawImage(clipCanvas, 0, 0)
+      // Composite shadow onto output
+      outputContext.save()
+      outputContext.globalAlpha = renderControls.shadow.opacity
+      outputContext.globalCompositeOperation = 'multiply'
+      outputContext.drawImage(shadowCanvas, 0, 0)
+      outputContext.restore()
+    }
+
+    // Layer 4: White glyph fill on top
+    const glyphCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+    const glyphCtx = getContext(glyphCanvas)
+    glyphCtx.fillStyle = '#ffffff'
+    drawFillOnly(glyphCtx)
+    glyphCtx.globalCompositeOperation = 'source-in'
+    glyphCtx.fillStyle = '#ffffff'
+    glyphCtx.fillRect(0, 0, workingWidth, workingHeight)
+    outputContext.drawImage(glyphCanvas, 0, 0)
+
   } else {
-    // 彩色字形直接由加深的同色系外层带包裹——没有白色描边。外扩部分就是加深后的颜色本身。
+    // bs (字节范) flavor
     const rimWidth = effectiveOutlineWidth(
       renderControls.flavor,
       renderControls.envelope.outlineStrokeWidth,
-    )
-
-    // ① DT 缓存复用
-    const shapeMaskDT = computeSquaredDistanceTransform(shapeMask)
-    const foregroundMaskDT = computeSquaredDistanceTransform(foregroundMask)
-    const foregroundMaskInvertedDT = computeSquaredDistanceTransform(
-      invertMask(foregroundMask),
-    )
-
-    const deepMask = fillEnclosedRegions(dilateMaskRound(shapeMask, rimWidth, shapeMaskDT))
-
-    const deepMaskDT = computeSquaredDistanceTransform(deepMask)
-    const deepMaskInvertedDT = computeSquaredDistanceTransform(invertMask(deepMask))
-    const deepMaskCanvas = maskToCanvas(
-      deepMask, ENVELOPE_ANTIALIAS, deepMaskDT, deepMaskInvertedDT,
-    )
-    const glyphMaskCanvas = maskToCanvas(
-      foregroundMask, OUTLINE_ANTIALIAS, foregroundMaskDT, foregroundMaskInvertedDT,
-    )
-    const deepGradientExtent = gradientExtentFromMask(
-      deepMask,
-      renderControls.envelope.gradientAngle,
     )
 
     const byteOutlineStops = gradientStops.map((color) =>
@@ -374,19 +291,33 @@ export async function renderSticker(
       lighten(color, BYTE_FOREGROUND_LIGHTEN),
     )
 
-    // ③ 创建可复用的 paint buffer
-    const buffer = createPaintBuffer(workingWidth, workingHeight)
+    // Layer 1: Deep outline — darkened gradient fill
+    const deepCanvas = createSolidShapeCanvas(rimWidth * 2)
+    const deepCtx = getContext(deepCanvas)
+    const deepGradientExtent = gradientExtentFromCanvas(
+      deepCanvas,
+      renderControls.envelope.gradientAngle,
+    )
+    deepCtx.globalCompositeOperation = 'source-in'
+    deepCtx.fillStyle = createGradient(
+      deepCtx, renderControls.envelope.gradientAngle,
+      byteOutlineStops, deepGradientExtent,
+    )
+    deepCtx.fillRect(0, 0, workingWidth, workingHeight)
+    outputContext.drawImage(deepCanvas, 0, 0)
 
-    // 配置色作为基准色；轮廓加深，文字只轻微提亮，保持清爽但不发白。
-    paintMask(outputContext, deepMaskCanvas, (context) =>
-      paintFamilyGradient(context, byteOutlineStops, deepGradientExtent),
-      1, 'source-over', buffer,
+    // Layer 2: Glyph fill — foreground gradient
+    const glyphCanvas = createRuntimeCanvas(workingWidth, workingHeight)
+    const glyphCtx = getContext(glyphCanvas)
+    glyphCtx.fillStyle = '#ffffff'
+    drawFillOnly(glyphCtx)
+    glyphCtx.globalCompositeOperation = 'source-in'
+    glyphCtx.fillStyle = createGradient(
+      glyphCtx, renderControls.envelope.gradientAngle,
+      byteForegroundStops, deepGradientExtent,
     )
-    // 前景层：字形与图标使用轻微提亮后的基准色。
-    paintMask(outputContext, glyphMaskCanvas, (context) =>
-      paintFamilyGradient(context, byteForegroundStops, deepGradientExtent),
-      1, 'source-over', buffer,
-    )
+    glyphCtx.fillRect(0, 0, workingWidth, workingHeight)
+    outputContext.drawImage(glyphCanvas, 0, 0)
   }
 
   // Emoji 以原生彩色叠加在最上层（不参与蒙版着色，保留其真实配色）。
@@ -412,8 +343,7 @@ export async function renderSticker(
     )
   }
 
-  // 以「文字内容高度」（不含描边）为稳定参照来缩放：描边越厚，裁剪画布相对内容越大，
-  // 缩放后整体尺寸随之增大，从而在导出与预览棋盘格上真实反映描边厚度。
+  // 以「文字内容高度」（不含描边）为稳定参照来缩放
   const contentHeight = Math.max(1, contentBounds.maxY - contentBounds.minY)
   const outputScale = normalizeRenderScale(options.outputScale)
   const exportScale = (EXPORT_TEXT_HEIGHT * outputScale) / contentHeight
