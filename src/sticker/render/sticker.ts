@@ -28,9 +28,11 @@ import { createRuntimeCanvas } from './runtime'
 import {
   configureTextContext,
   computeIconBox,
+  buildGlyphTileCache,
   drawColorEmoji,
   drawEmojiGlyphs,
   drawFilledGlyphs,
+  drawGlyphsFromTiles,
   drawIcon,
   drawPlacedGlyphs,
   isTextPlacement,
@@ -130,6 +132,14 @@ export async function renderSticker(
   // 把用户颜色规整为实际停靠点（单色自动补出同色系深色，方向由角度旋钮控制）。
   const gradientStops = resolveGradientStops(renderControls.envelope.colors)
 
+  // ---------- Glyph Tile Cache: pre-render each unique glyph once ----------
+  // This is the key web optimization: avoids repeated strokeText/fillText calls.
+  // 300 unique chars × 1 strokeText each, then N×drawImage (texture blit) per layer.
+  const primaryStrokeWidth = renderControls.flavor === 'snh'
+    ? effectiveOutlineWidth(renderControls.flavor, renderControls.envelope.outlineStrokeWidth) * 2
+    : effectiveOutlineWidth(renderControls.flavor, renderControls.envelope.outlineStrokeWidth + renderControls.envelope.edgeWidth) * 2
+  const { strokeTiles, fillTiles } = buildGlyphTileCache(layout, primaryStrokeWidth)
+
   // ---------- Helper: draw non-emoji glyphs + icon with stroke and fill ----------
   const drawStrokeAndFill = (
     context: OffscreenCanvasRenderingContext2D,
@@ -137,16 +147,20 @@ export async function renderSticker(
     ox = originX,
     oy = originY,
   ) => {
-    context.lineWidth = lineWidth
-    context.lineJoin = 'round'
-    context.lineCap = 'round'
-    context.miterLimit = 2
-    configureTextContext(context, renderControls.fontSize, renderControls.flavor)
-    // draw text glyphs with stroke + fill
-    drawPlacedGlyphs(context, layout, ox, oy, (ctx, grapheme) => {
-      ctx.strokeText(grapheme, 0, 0)
-      ctx.fillText(grapheme, 0, 0)
-    }, isTextPlacement)
+    // Use tile cache for the primary stroke width; fall back to direct draw for others
+    if (lineWidth === primaryStrokeWidth) {
+      drawGlyphsFromTiles(context, layout, strokeTiles, ox, oy)
+    } else {
+      context.lineWidth = lineWidth
+      context.lineJoin = 'round'
+      context.lineCap = 'round'
+      context.miterLimit = 2
+      configureTextContext(context, renderControls.fontSize, renderControls.flavor)
+      drawPlacedGlyphs(context, layout, ox, oy, (ctx, grapheme) => {
+        ctx.strokeText(grapheme, 0, 0)
+        ctx.fillText(grapheme, 0, 0)
+      }, isTextPlacement)
+    }
     // draw icon (if present, non-colored icons participate in outline)
     if (iconBitmap && iconBox) {
       drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
@@ -157,14 +171,13 @@ export async function renderSticker(
     }
   }
 
-  // Helper: draw text glyphs fill-only
+  // Helper: draw text glyphs fill-only (uses cached fill tiles)
   const drawFillOnly = (
     context: OffscreenCanvasRenderingContext2D,
     ox = originX,
     oy = originY,
   ) => {
-    configureTextContext(context, renderControls.fontSize, renderControls.flavor)
-    drawFilledGlyphs(context, layout, ox, oy, isTextPlacement)
+    drawGlyphsFromTiles(context, layout, fillTiles, ox, oy)
     if (iconBitmap && iconBox) {
       drawIcon(context, iconBitmap, iconBox, ox, oy, iconGlyphTransform)
     }
@@ -240,12 +253,11 @@ export async function renderSticker(
     if (renderControls.shadow.opacity > 0) {
       const shadowCanvas = createRuntimeCanvas(workingWidth, workingHeight)
       const shadowCtx = getContext(shadowCanvas)
-      // Draw blurred shadow content first
+      // Draw blurred shadow content first (using cached fill tiles)
       shadowCtx.fillStyle = renderControls.shadow.color
       shadowCtx.filter = `blur(${renderControls.shadow.blur}px)`
-      configureTextContext(shadowCtx, renderControls.fontSize, renderControls.flavor)
-      drawFilledGlyphs(
-        shadowCtx, layout,
+      drawGlyphsFromTiles(
+        shadowCtx, layout, fillTiles,
         originX + renderControls.shadow.offsetX,
         originY + renderControls.shadow.offsetY,
       )

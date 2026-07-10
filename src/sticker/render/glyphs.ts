@@ -12,6 +12,177 @@ import type {
 
 const EMOJI_CORNER_CUT_RATIO = 0.02
 
+// ---------------------------------------------------------------------------
+// Glyph Tile Cache — pre-render each unique glyph once, then blit via drawImage.
+// This avoids repeated strokeText/fillText calls (the main web perf bottleneck).
+// ---------------------------------------------------------------------------
+
+export interface GlyphTile {
+  canvas: OffscreenCanvas
+  /** X offset from glyph anchor (placement.x) to tile top-left corner */
+  offsetX: number
+  /** Y offset from glyph baseline (placement.baselineY) to tile top-left corner */
+  offsetY: number
+}
+
+/**
+ * Render a single glyph to a small canvas with the given stroke width and transform.
+ * The transform (scale, rotate, skew) is "baked in" to the tile.
+ */
+export function renderGlyphTile(
+  grapheme: string,
+  fontSize: number,
+  lineWidth: number,
+  flavor: StickerFlavor,
+  chineseDominant: boolean,
+  glyphTransform: GlyphTransform,
+  applySkew: boolean,
+): GlyphTile {
+  // Measure glyph bounding box (un-transformed)
+  const tempCanvas = createRuntimeCanvas(1, 1)
+  const tempCtx = getContext(tempCanvas)
+  tempCtx.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)
+  tempCtx.textBaseline = 'alphabetic'
+  const metrics = tempCtx.measureText(grapheme)
+  const left = metrics.actualBoundingBoxLeft || 0
+  const right = metrics.actualBoundingBoxRight || metrics.width || fontSize
+  const ascent = metrics.actualBoundingBoxAscent || fontSize * 0.82
+  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.18
+
+  // Compute transformed bounding box to determine tile size
+  const { scale, rotationDeg, skewDeg } = glyphTransform
+  const [scaleX, scaleY] = scale
+  const rotRad = (rotationDeg * Math.PI) / 180
+  const hSkewDeg = applySkew && usesFeatureFont(flavor, grapheme, chineseDominant)
+    ? skewDeg[0]
+    : 0
+  const hSkewTan = Math.tan((hSkewDeg * Math.PI) / 180)
+  const vSkewTan = Math.tan((skewDeg[1] * Math.PI) / 180)
+
+  // Four corners of glyph bbox relative to anchor (0, 0 = baseline left)
+  const corners = [
+    { x: -left, y: -ascent },
+    { x: right, y: -ascent },
+    { x: -left, y: descent },
+    { x: right, y: descent },
+  ]
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const { x, y } of corners) {
+    // Apply transform chain: scale → rotate → hSkew → vSkew
+    let tx = x * scaleX
+    let ty = y * scaleY
+    if (rotRad !== 0) {
+      const cos = Math.cos(-rotRad), sin = Math.sin(-rotRad)
+      const rx = tx * cos - ty * sin
+      const ry = tx * sin + ty * cos
+      tx = rx; ty = ry
+    }
+    if (hSkewTan !== 0) tx += hSkewTan * ty
+    if (vSkewTan !== 0) ty += vSkewTan * tx
+    minX = Math.min(minX, tx)
+    minY = Math.min(minY, ty)
+    maxX = Math.max(maxX, tx)
+    maxY = Math.max(maxY, ty)
+  }
+
+  // Add padding for stroke expansion + safety margin
+  const strokePad = lineWidth / 2 + 2
+  const tileWidth = Math.ceil(maxX - minX + strokePad * 2) + 2
+  const tileHeight = Math.ceil(maxY - minY + strokePad * 2) + 2
+  const anchorX = -minX + strokePad + 1
+  const anchorY = -minY + strokePad + 1
+
+  // Render glyph onto tile canvas
+  const canvas = createRuntimeCanvas(tileWidth, tileHeight)
+  const ctx = getContext(canvas)
+  ctx.translate(anchorX, anchorY)
+
+  if (applySkew) {
+    if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY)
+    if (rotRad !== 0) ctx.rotate(-rotRad)
+    if (hSkewTan !== 0) ctx.transform(1, 0, hSkewTan, 1, 0, 0)
+    if (vSkewTan !== 0) ctx.transform(1, vSkewTan, 0, 1, 0, 0)
+  }
+
+  ctx.font = fontSpec(flavor, fontSize, grapheme, chineseDominant)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#ffffff'
+  ctx.strokeStyle = '#ffffff'
+
+  if (lineWidth > 0) {
+    ctx.lineWidth = lineWidth
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.miterLimit = 2
+    ctx.strokeText(grapheme, 0, 0)
+  }
+  ctx.fillText(grapheme, 0, 0)
+
+  return {
+    canvas,
+    offsetX: -anchorX,
+    offsetY: -anchorY,
+  }
+}
+
+/**
+ * Build a cache of pre-rendered glyph tiles for all unique graphemes in the layout.
+ * Returns separate maps for stroke+fill and fill-only tiles.
+ */
+export function buildGlyphTileCache(
+  layout: StickerLayout,
+  strokeLineWidth: number,
+): { strokeTiles: Map<string, GlyphTile>; fillTiles: Map<string, GlyphTile> } {
+  const strokeTiles = new Map<string, GlyphTile>()
+  const fillTiles = new Map<string, GlyphTile>()
+  const { fontSize, flavor, chineseDominant, glyphTransform } = layout
+
+  for (const placement of layout.placements) {
+    const { grapheme, skew } = placement
+    if (isEmojiGrapheme(grapheme)) continue
+
+    // Stroke tile (for envelope layer)
+    if (!strokeTiles.has(grapheme)) {
+      strokeTiles.set(grapheme, renderGlyphTile(
+        grapheme, fontSize, strokeLineWidth, flavor, chineseDominant, glyphTransform, skew,
+      ))
+    }
+    // Fill tile (for shadow + glyph layers)
+    if (!fillTiles.has(grapheme)) {
+      fillTiles.set(grapheme, renderGlyphTile(
+        grapheme, fontSize, 0, flavor, chineseDominant, glyphTransform, skew,
+      ))
+    }
+  }
+
+  return { strokeTiles, fillTiles }
+}
+
+/**
+ * Draw all text glyphs using pre-rendered tiles (drawImage blit).
+ * Much faster than per-glyph strokeText/fillText on web.
+ */
+export function drawGlyphsFromTiles(
+  context: OffscreenCanvasRenderingContext2D,
+  layout: StickerLayout,
+  tiles: Map<string, GlyphTile>,
+  originX: number,
+  originY: number,
+): void {
+  for (const placement of layout.placements) {
+    if (isEmojiGrapheme(placement.grapheme)) continue
+    const tile = tiles.get(placement.grapheme)
+    if (!tile) continue
+    context.drawImage(
+      tile.canvas,
+      originX + placement.x + tile.offsetX,
+      originY + placement.baselineY + tile.offsetY,
+    )
+  }
+}
+
 export function resetAndPrepareTextContext(
   context: OffscreenCanvasRenderingContext2D,
   fontSize: number,
