@@ -95,3 +95,188 @@ export function paintMask(
   targetContext.drawImage(temporaryCanvas, 0, 0)
   targetContext.restore()
 }
+
+// ---------------------------------------------------------------------------
+// Canvas-level flood fill for enclosed regions.
+// Replaces EDT-based binary mask dilation + fillEnclosedRegions pipeline
+// with native Canvas stroke/fill + pixel-level BFS.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fill enclosed interior regions on a canvas (e.g. inside 口、国、回).
+ * Uses edge-seeded flood fill on the alpha channel.
+ *
+ * Also propagates opacity through the inner antialiased band to prevent
+ * a visible "white seam" after gradient compositing. The propagation starts
+ * from filled pixels and stops at fully opaque pixels — so it never touches
+ * the OUTER antialiased edge.
+ */
+export function fillEnclosedRegionsCanvas(canvas: OffscreenCanvas): void {
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const total = width * height
+
+  // BFS from all 4 canvas edges to mark exterior-reachable background pixels.
+  const exterior = new Uint8Array(total)
+  const stack = new Int32Array(total)
+  let stackTop = -1
+
+  const enqueue = (i: number) => {
+    if (data[i * 4 + 3] <= 16 && exterior[i] === 0) {
+      exterior[i] = 1
+      stack[++stackTop] = i
+    }
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x)
+    enqueue((height - 1) * width + x)
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(y * width)
+    enqueue(y * width + width - 1)
+  }
+
+  while (stackTop >= 0) {
+    const i = stack[stackTop--]
+    const x = i % width
+    const y = (i - x) / width
+    if (x > 0) enqueue(i - 1)
+    if (x < width - 1) enqueue(i + 1)
+    if (y > 0) enqueue(i - width)
+    if (y < height - 1) enqueue(i + width)
+  }
+
+  // Fill enclosed transparent pixels with opaque white.
+  let modified = false
+  const filled = new Uint8Array(total)
+  for (let i = 0; i < total; i += 1) {
+    if (data[i * 4 + 3] <= 16 && exterior[i] === 0) {
+      const off = i * 4
+      data[off] = 255
+      data[off + 1] = 255
+      data[off + 2] = 255
+      data[off + 3] = 255
+      filled[i] = 1
+      modified = true
+    }
+  }
+
+  if (modified) {
+    // Propagate from filled pixels through the inner AA band (partial alpha,
+    // non-exterior) until hitting fully opaque stroke body (α=255).
+    stackTop = -1
+    for (let i = 0; i < total; i += 1) {
+      if (filled[i]) stack[++stackTop] = i
+    }
+    const promote = (j: number) => {
+      const a = data[j * 4 + 3]
+      if (a > 16 && a < 255 && filled[j] === 0) {
+        data[j * 4 + 3] = 255
+        filled[j] = 1
+        stack[++stackTop] = j
+      }
+    }
+    while (stackTop >= 0) {
+      const i = stack[stackTop--]
+      const x = i % width
+      const y = (i - x) / width
+      if (x > 0) promote(i - 1)
+      if (x < width - 1) promote(i + 1)
+      if (y > 0) promote(i - width)
+      if (y < height - 1) promote(i + width)
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+}
+
+/**
+ * Erode (shrink) an opaque shape inward by `radius` pixels.
+ * Uses BFS from boundary pixels (transparent → opaque transition).
+ * Only pixels within `radius` distance from the boundary are cleared.
+ * Complexity: O(W×H) — no EDT needed.
+ */
+export function erodeCanvasInward(canvas: OffscreenCanvas, radius: number): void {
+  if (radius <= 0) return
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+  const total = width * height
+
+  // BFS from all transparent pixels, expand layer by layer up to radius depth.
+  const dist = new Uint16Array(total)
+  dist.fill(65535)
+  const queue = new Int32Array(total)
+  let qHead = 0
+  let qTail = 0
+
+  for (let i = 0; i < total; i++) {
+    if (data[i * 4 + 3] <= 16) {
+      dist[i] = 0
+      queue[qTail++] = i
+    }
+  }
+
+  const intRadius = Math.ceil(radius)
+  while (qHead < qTail) {
+    const i = queue[qHead++]
+    const d = dist[i] + 1
+    if (d > intRadius) continue
+    const x = i % width
+    const y = (i - x) / width
+    if (x > 0 && dist[i - 1] > d) { dist[i - 1] = d; queue[qTail++] = i - 1 }
+    if (x < width - 1 && dist[i + 1] > d) { dist[i + 1] = d; queue[qTail++] = i + 1 }
+    if (y > 0 && dist[i - width] > d) { dist[i - width] = d; queue[qTail++] = i - width }
+    if (y < height - 1 && dist[i + width] > d) { dist[i + width] = d; queue[qTail++] = i + width }
+  }
+
+  let modified = false
+  for (let i = 0; i < total; i++) {
+    if (dist[i] <= intRadius && data[i * 4 + 3] > 16) {
+      data[i * 4 + 3] = 0
+      modified = true
+    }
+  }
+  if (modified) {
+    ctx.putImageData(imageData, 0, 0)
+  }
+}
+
+/**
+ * Compute gradient extent from a canvas's alpha channel (replaces gradientExtentFromMask
+ * when we no longer have a BinaryMask).
+ */
+export function gradientExtentFromCanvas(
+  canvas: OffscreenCanvas,
+  angleDeg: number,
+): { startProjection: number; endProjection: number } {
+  const { width, height } = canvas
+  const ctx = getContext(canvas)
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const { data } = imageData
+
+  const angle = ((angleDeg - 90) * Math.PI) / 180
+  const dx = Math.cos(angle)
+  const dy = Math.sin(angle)
+  let startProjection = Number.POSITIVE_INFINITY
+  let endProjection = Number.NEGATIVE_INFINITY
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] === 0) continue
+      const projection = (x + 0.5) * dx + (y + 0.5) * dy
+      startProjection = Math.min(startProjection, projection)
+      endProjection = Math.max(endProjection, projection)
+    }
+  }
+
+  if (!Number.isFinite(startProjection) || endProjection <= startProjection) {
+    const fallbackEnd = Math.abs(dx) * Math.max(1, width) + Math.abs(dy) * Math.max(1, height)
+    return { startProjection: 0, endProjection: fallbackEnd }
+  }
+
+  return { startProjection, endProjection }
+}
