@@ -1,6 +1,6 @@
 # 高峰生成器
 
-浏览器里的中文「攀登体」表情包生成器。输入文字，即时生成带彩色渐变、描边与错位攀登效果的贴纸，一键复制图片或分享链接。
+浏览器里的中文「勇攀高峰」表情包与飞书头像生成器。输入文字，即时生成带彩色渐变、描边与错位攀登效果的贴纸，或生成指定尺寸的圆形群头像。
 
 **在线体验** · [GitHub Pages](https://zhousiru.github.io/scale-new-heights-generator)
 
@@ -22,7 +22,9 @@
 - **27 个内置预设**，按「字节范 / 勇攀高峰 / 务实浪漫系列 / 地震级创意」分组。
 - **高级设置**：抗锯齿倍率、描边厚度、行高、上下/左右留白等。
 - **可分享 URL**：所有控件状态同步到 query（仅序列化非默认值），复制链接默认生成 `m=simple` 简易模式，适合 iframe 预览。
-- **导出**：复制图片到剪贴板、导出 PNG（iframe 内改为新标签页打开）、复制生成链接；受限 iframe 会引导右键复制图片。
+- **飞书头像**：`/avatar` 路径生成固定边长方形头像；支持「彩底白字」与「白底彩环同色字」两种模式，群名在圆内自适应多行，渐变样式可手动选择，支持文字旋转。
+- **闪光弹 HDR**：贴纸与头像都支持 Ultra HDR JPEG gain map 输出，强度用 EV stops 表示，`maxContentBoost = 2^EV`；关闭时导出普通 PNG。
+- **导出**：复制图片到剪贴板、导出图片（iframe 内改为新标签页打开）、复制生成链接；受限 iframe 会引导右键复制图片。
 - 跟随系统的深色模式。
 
 ## 技术栈
@@ -34,6 +36,7 @@
 - [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas) —— 可选的默认 Node 无头 PNG runtime
 - [Inter](https://rsms.me/inter/)（`inter-ui` 拉丁子集）—— 西文字体
 - [colord](https://github.com/omgovich/colord) —— 颜色处理
+- [hdrify](https://www.npmjs.com/package/hdrify) —— Ultra HDR JPEG gain map 编码
 - [@iconify/react](https://iconify.design/) —— 图标
 - [Vitest](https://vitest.dev/) + oxlint
 
@@ -135,6 +138,20 @@ import { DEFAULT_STICKER_CONTROLS, STICKER_PRESET_LIST } from 'scale-new-heights
 import { renderSticker, setCanvasRuntime } from 'scale-new-heights-generator/core'
 ```
 
+飞书头像使用独立入口，不依赖 sticker 的字形/描边管线：
+
+```ts
+import { renderAvatarToBuffer } from 'scale-new-heights-generator/avatar/node'
+
+const png = await renderAvatarToBuffer({
+  text: '前端群',
+  style: 'sunset',
+  mode: 'outline',
+  size: 512,
+  rotation: -8,
+})
+```
+
 ## 工作原理
 
 渲染是这个项目的核心，分工如下：
@@ -146,7 +163,9 @@ import { renderSticker, setCanvasRuntime } from 'scale-new-heights-generator/cor
 - **Emoji 原生彩色 + 描边**：渲染层拆分 `shapeMask` 与 `foregroundMask`。Emoji 参与外轮廓/描边，但最终仍以原生彩色叠加；Apple Color Emoji 角点杂像素会按字符隔离裁剪，避免污染描边。
 - **图标栅格化在主线程**（[`iconLoader.ts`](src/sticker/utils/iconLoader.ts)）：Chromium 只能在主线程栅格化 SVG，因此图标先在主线程拉取并绘制为 `ImageBitmap`，再转移进 worker。单色图标作为剪影随文字配色重着色；多色和 duotone 图标保留原生配色并同样参与外轮廓。
 - **内存友好导出**：裁剪、缩放、padding 合成一步完成，避免连续创建大尺寸中间画布；paint buffer 与 mask canvas 会复用，降低 Node/Worker 渲染峰值内存。
+- **贴纸 HDR 管线**：开启「闪光弹」后，worker 会把最终贴纸画布转为线性 HDR 浮点图，再用 `hdrify` 写成 Ultra HDR JPEG gain map。普通 PNG 仍保留透明通道；HDR JPEG 按格式限制合成白底。
 - **配色算法**（[`color.ts`](src/sticker/utils/color.ts)）：单色补深、随机取色、字节范双色基准等，均有 [单测](src/sticker/utils/color.test.ts) 覆盖。
+- **飞书头像管线**（[`avatar.ts`](src/avatar/render/avatar.ts)）：独立执行贴边圆形、手选样式、多行群名自适应与文字旋转。`fill` 为全幅渐变背景白字，`outline` 为全幅白底彩环同色字；「闪光弹」在 worker 内把头像画布转为线性 HDR 浮点图，再用 `hdrify` 写成 Ultra HDR JPEG gain map。HDR 预览直接使用 `<img>` Blob，避免画回 Canvas 被压成 SDR。
 
 ### URL 状态
 
@@ -158,11 +177,21 @@ import { renderSticker, setCanvasRuntime } from 'scale-new-heights-generator/cor
 src/
 ├── App.tsx                    # 页面壳：组合控制面板与预览面板
 ├── router/router.ts           # TanStack Router 配置
+├── shared/                    # 真共享组件与底层 runtime，不承载业务规则
+├── avatar/
+│   ├── index.ts               # avatar 根入口：配置、URL 与渲染核心
+│   ├── core.ts                # avatar core 入口：可注入 runtime 的渲染核心
+│   ├── node.ts                # avatar node 入口：PNG Buffer API
+│   ├── components/            # 头像控制面板、预览面板
+│   ├── hooks/                 # 状态、URL 同步、预览与导出副作用
+│   ├── config/                # 控件模型、URL query、worker 协议
+│   ├── render/                # 圆形头像渲染与自适应排版
+│   └── worker/                # worker 入口与通信封装
 └── sticker/
     ├── index.ts               # npm 根入口：预设、配置、URL 与配色纯逻辑
     ├── core.ts                # npm core 入口：可注入 runtime 的渲染核心
     ├── node.ts                # npm node 入口：默认 Node runtime 与 PNG Buffer API
-    ├── components/            # 控制面板、预览面板、角度旋钮
+    ├── components/            # 控制面板、预览面板
     ├── hooks/                 # 状态、URL 同步、预览与导出副作用
     ├── config/                # 控件模型、预设、URL query、worker 协议
     ├── render/                # 渲染管线、布局、蒙版、渐变、canvas runtime

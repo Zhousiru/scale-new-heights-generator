@@ -1,0 +1,259 @@
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-block-size: 2rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 0.125rem);
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+}
+
+.ui-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 28%, transparent);
+}
+
+.ui-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-button-sm {
+  min-block-size: 1.875rem;
+  padding: 0.3125rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.ui-button-icon {
+  aspect-ratio: 1;
+  min-inline-size: 2rem;
+  padding: 0.375rem;
+}
+
+.ui-button-default {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.ui-button-default:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary) 90%, transparent);
+}
+
+.ui-button-active {
+  border-color: var(--control-active-border);
+  color: var(--foreground);
+  background: var(--control-active-bg);
+}
+
+.ui-button-active:hover:not(:disabled) {
+  background: var(--control-active-hover-bg);
+}
+
+.ui-button-secondary {
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+}
+
+.ui-button-secondary:hover:not(:disabled) {
+  color: var(--accent-foreground);
+  background: var(--accent);
+}
+
+.ui-button-secondary.ui-button-active {
+  border-color: var(--control-active-border);
+  color: var(--foreground);
+  background: var(--control-active-bg);
+}
+
+.ui-button-secondary.ui-button-active:hover:not(:disabled) {
+  background: var(--control-active-hover-bg);
+}
+
+.ui-button-ghost {
+  color: var(--foreground);
+  background: transparent;
+}
+
+.ui-button-ghost:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.ui-button-link {
+  min-block-size: auto;
+  padding: 0;
+  color: var(--foreground);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+.ui-input,
+.ui-textarea,
+.ui-select-trigger {
+  inline-size: 100%;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 0.125rem);
+  color: var(--foreground);
+  background: var(--background);
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.ui-input:focus,
+.ui-textarea:focus,
+.ui-select-trigger:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+}
+
+.ui-input {
+  min-block-size: 2rem;
+  padding: 0.375rem 0.625rem;
+}
+
+.ui-textarea {
+  min-block-size: 2.5rem;
+  padding: 0.375rem 0.625rem;
+  resize: none;
+}
+
+.ui-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  min-block-size: 2rem;
+  padding: 0.375rem 0.625rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ui-select-value {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-trigger svg {
+  flex: 0 0 auto;
+}
+
+.ui-select-content {
+  z-index: 50;
+  min-inline-size: var(--radix-select-trigger-width);
+  max-block-size: var(--radix-select-content-available-height, calc(100svh - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow:
+    0 10px 15px -3px oklch(0 0 0 / 10%),
+    0 4px 6px -4px oklch(0 0 0 / 10%);
+}
+
+.ui-select-viewport {
+  padding: 0.375rem;
+}
+
+.ui-select-label {
+  padding: 0.375rem 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.ui-select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-block-size: 2rem;
+  border-radius: calc(var(--radius) - 0.25rem);
+  padding: 0.375rem 2rem 0.375rem 0.5rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.ui-select-item[data-highlighted] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ui-select-indicator {
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  display: inline-flex;
+}
+
+.ui-slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding-block: 0.375rem;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.ui-slider-track {
+  position: relative;
+  flex: 1;
+  block-size: 0.25rem;
+  border-radius: 999rem;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.ui-slider-range {
+  position: absolute;
+  inset-block: 0;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.ui-slider-thumb {
+  display: block;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 2px solid var(--primary);
+  border-radius: 999rem;
+  background: var(--background);
+  outline: none;
+  cursor: grab;
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+
+.ui-slider:hover .ui-slider-thumb {
+  transform: scale(1.08);
+}
+
+.ui-slider:active .ui-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 20%, transparent);
+}
+
+.ui-slider-thumb:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+}

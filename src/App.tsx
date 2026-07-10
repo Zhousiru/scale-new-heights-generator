@@ -1,4 +1,3 @@
-import './App.css'
 import { StickerControlsPanel } from './sticker/components/StickerControlsPanel'
 import { StickerPreviewPanel } from './sticker/components/StickerPreviewPanel'
 import { useStickerEditor } from './sticker/hooks/useStickerEditor'
@@ -17,6 +16,7 @@ function App() {
       shareUrl={sticker.shareUrl}
       editorUrl={sticker.editorUrl}
       simpleMode={sticker.isSimpleMode}
+      exportLabel={sticker.exportLabel}
       onCopyImage={() => void sticker.handleCopyImage()}
       onExport={() => void sticker.handleExport()}
       onCopyLink={() => void sticker.handleCopyLink()}

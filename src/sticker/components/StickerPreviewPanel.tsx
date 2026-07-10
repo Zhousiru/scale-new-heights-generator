@@ -1,15 +1,11 @@
-import { useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
+import { CanvasPreview, PreviewActions } from '../../shared/components/ImagePreview'
+import { ToolFooter } from '../../shared/components/ToolFooter'
+import { UsageHintCarousel } from '../../shared/components/UsageHintCarousel'
+import { Button } from '../../shared/ui/button'
+import { loadToolSearch } from '../../shared/utils/toolState'
 import type { CopiedTarget } from '../hooks/useStickerEditor'
 import type { PreviewResult } from '../worker/stickerWorker'
-
-const IN_IFRAME = (() => {
-  try {
-    return window.self !== window.top
-  } catch {
-    return true
-  }
-})()
 
 interface StickerPreviewPanelProps {
   preview: PreviewResult | null
@@ -21,155 +17,21 @@ interface StickerPreviewPanelProps {
   shareUrl: string
   editorUrl: string
   simpleMode?: boolean
+  exportLabel: string
   onCopyImage: () => void
   onExport: () => void
   onCopyLink: () => void
-}
-
-interface PreviewCanvasProps {
-  preview: PreviewResult | null
-  previewError: string | null
-  isRendering: boolean
-  hasText: boolean
-}
-
-interface PreviewActionsProps {
-  copied: CopiedTarget | null
-  isExporting: boolean
-  shareUrl: string
-  onCopyImage: () => void
-  onExport: () => void
-  onCopyLink: () => void
-}
-
-function PreviewCanvas({
-  preview,
-  previewError,
-  isRendering,
-  hasText,
-}: PreviewCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !preview) return
-
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = preview.width
-    canvas.height = preview.height
-    // 只设置 CSS 宽度；高度保持 `auto`，避免预览缩放时被压扁。
-    canvas.style.width = `${preview.width / dpr}px`
-    canvas.style.height = 'auto'
-
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(preview.bitmap, 0, 0)
-    }
-  }, [preview])
-
-  return (
-    <div className="canvas-area">
-      {hasText ? (
-        <div className="preview-wrap">
-          <canvas
-            ref={canvasRef}
-            className={isRendering && preview ? 'stale' : undefined}
-            style={{ display: preview ? 'block' : 'none' }}
-          />
-          {isRendering && <div className="thinking">正在思考</div>}
-        </div>
-      ) : (
-        <span className="placeholder">输入文字后预览</span>
-      )}
-      {previewError ? <p className="error">{previewError}</p> : null}
-    </div>
-  )
-}
-
-function PreviewActions({
-  copied,
-  isExporting,
-  shareUrl,
-  onCopyImage,
-  onExport,
-  onCopyLink,
-}: PreviewActionsProps) {
-  return (
-    <div className="actions">
-      <button
-        className="export-btn"
-        type="button"
-        onClick={onCopyImage}
-      >
-        <Icon icon="tabler:copy" width={15} height={15} />
-        {copied === 'image' ? '已复制' : '复制图片'}
-      </button>
-      {IN_IFRAME ? (
-        <a
-          className="export-btn"
-          href={shareUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Icon icon="tabler:external-link" width={15} height={15} />
-          新标签页导出
-        </a>
-      ) : (
-        <button
-          className="export-btn"
-          type="button"
-          disabled={isExporting}
-          onClick={onExport}
-        >
-          <Icon icon="tabler:download" width={15} height={15} />
-          {isExporting ? '导出中…' : '导出 PNG'}
-        </button>
-      )}
-      <button
-        className="export-btn"
-        type="button"
-        onClick={onCopyLink}
-      >
-        <Icon icon="tabler:link" width={15} height={15} />
-        {copied === 'link' ? '已复制' : '复制链接'}
-      </button>
-    </div>
-  )
 }
 
 function SimpleFooter({ editorUrl }: { editorUrl: string }) {
   return (
     <div className="simple-footer">
-      <a className="export-btn" href={editorUrl} target="_top">
-        <Icon icon="tabler:edit" width={15} height={15} />
-        编辑
-      </a>
-    </div>
-  )
-}
-
-function PreviewFooter() {
-  return (
-    <div className="footer-links">
-      <a
-        className="footer-link"
-        href="http://go/^"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon icon="tabler:mountain" width={16} height={16} />
-        内网文档
-      </a>
-      <a
-        className="footer-link"
-        href="https://github.com/zhousiru/scale-new-heights-generator"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon icon="tabler:brand-github" width={16} height={16} />
-        GitHub
-      </a>
+      <Button variant="secondary" asChild>
+        <a href={editorUrl} target="_top">
+          <Icon icon="tabler:edit" width={15} height={15} />
+          编辑
+        </a>
+      </Button>
     </div>
   )
 }
@@ -184,6 +46,7 @@ export function StickerPreviewPanel({
   shareUrl,
   editorUrl,
   simpleMode = false,
+  exportLabel,
   onCopyImage,
   onExport,
   onCopyLink,
@@ -191,11 +54,12 @@ export function StickerPreviewPanel({
   if (simpleMode) {
     return (
       <section className="panel panel-preview panel-preview-simple">
-        <PreviewCanvas
+        <CanvasPreview
           preview={preview}
           previewError={previewError}
           isRendering={isRendering}
-          hasText={hasText}
+          hasContent={hasText}
+          placeholder="输入文字后预览"
         />
         <SimpleFooter editorUrl={editorUrl} />
       </section>
@@ -204,28 +68,31 @@ export function StickerPreviewPanel({
 
   return (
     <section className="panel panel-preview">
-      <PreviewCanvas
+      <CanvasPreview
         preview={preview}
         previewError={previewError}
         isRendering={isRendering}
-        hasText={hasText}
+        hasContent={hasText}
+        placeholder="输入文字后预览"
       />
       {hasText && (
         <PreviewActions
           copied={copied}
           isExporting={isExporting}
           shareUrl={shareUrl}
+          exportLabel={exportLabel}
           onCopyImage={onCopyImage}
           onExport={onExport}
           onCopyLink={onCopyLink}
         />
       )}
-      {hasText && (
-        <p className="usage-hint">
-          发出后右键「添加为表情」再发，尺寸才正常。
-        </p>
-      )}
-      <PreviewFooter />
+      {hasText && <UsageHintCarousel />}
+      <ToolFooter
+        to="/avatar"
+        icon="tabler:user-square-rounded"
+        label="飞书头像"
+        search={loadToolSearch('avatar')}
+      />
     </section>
   )
 }

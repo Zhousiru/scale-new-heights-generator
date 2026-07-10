@@ -1,3 +1,20 @@
+import {
+  ANTIALIAS_SCALE_MAX,
+  ANTIALIAS_SCALE_MIN,
+  DEFAULT_ANTIALIAS_SCALE,
+  DEFAULT_RENDER_SCALE,
+  RENDER_SCALE_MAX,
+  RENDER_SCALE_MIN,
+  normalizeAntialiasScale,
+  normalizeRenderScale,
+} from '../../shared/config/scale'
+import {
+  DEFAULT_FLASH_STOPS,
+  FLASH_STOPS_MAX,
+  FLASH_STOPS_MIN,
+  FLASH_STOPS_STEP,
+} from '../../shared/config/hdr'
+
 export interface StickerShadowControls {
   offsetX: number
   offsetY: number
@@ -29,42 +46,20 @@ export const STICKER_FLAVORS: StickerFlavor[] = ['snh', 'bs']
 
 // 渲染倍率的单一真源：默认值与合法区间都只在这里定义，
 // 渲染层（sticker.ts）与 Node 入口（node.ts）一律 import，禁止各自重写。
-export const ANTIALIAS_SCALE_MIN = 1
-export const ANTIALIAS_SCALE_MAX = 5
-export const DEFAULT_ANTIALIAS_SCALE = 1.5
-export const RENDER_SCALE_MIN = 1
-export const RENDER_SCALE_MAX = 3
-export const DEFAULT_RENDER_SCALE = 1
-
-export function normalizeAntialiasScale(value: unknown): number {
-  return normalizeScale(
-    value,
-    ANTIALIAS_SCALE_MIN,
-    ANTIALIAS_SCALE_MAX,
-    DEFAULT_ANTIALIAS_SCALE,
-  )
+export {
+  ANTIALIAS_SCALE_MAX,
+  ANTIALIAS_SCALE_MIN,
+  DEFAULT_ANTIALIAS_SCALE,
+  DEFAULT_RENDER_SCALE,
+  RENDER_SCALE_MAX,
+  RENDER_SCALE_MIN,
+  normalizeAntialiasScale,
+  normalizeRenderScale,
 }
 
-export function normalizeRenderScale(value: unknown): number {
-  return normalizeScale(
-    value,
-    RENDER_SCALE_MIN,
-    RENDER_SCALE_MAX,
-    DEFAULT_RENDER_SCALE,
-  )
-}
-
-function normalizeScale(
-  value: unknown,
-  min: number,
-  max: number,
-  fallback: number,
-): number {
-  const parsed = typeof value === 'string' ? Number(value.trim()) : value
-  return typeof parsed === 'number' && Number.isFinite(parsed)
-    ? Math.min(max, Math.max(min, parsed))
-    : fallback
-}
+export const STICKER_FLASH_STOPS_MIN = FLASH_STOPS_MIN
+export const STICKER_FLASH_STOPS_MAX = FLASH_STOPS_MAX
+export const STICKER_FLASH_STOPS_STEP = FLASH_STOPS_STEP
 
 export interface StickerControls {
   text: string
@@ -85,6 +80,10 @@ export interface StickerControls {
   iconTilt: boolean
   /** 内部超采样倍率，用于平滑斜线和斜切边缘。 */
   antialiasScale: number
+  /** 开启后导出 Ultra HDR JPEG gain map；普通路径仍导出 PNG。 */
+  flash: boolean
+  /** HDR 增益，单位 EV stops；maxContentBoost = 2^flashStops。 */
+  flashStops: number
   shadow: StickerShadowControls
   envelope: StickerEnvelopeControls
   /** 裁剪结果四周的透明留白，按轴独立设置。 */
@@ -103,6 +102,8 @@ export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   tilt: true,
   iconTilt: true,
   antialiasScale: DEFAULT_ANTIALIAS_SCALE,
+  flash: false,
+  flashStops: DEFAULT_FLASH_STOPS,
   shadow: {
     offsetX: 4,
     offsetY: 6,
@@ -185,6 +186,16 @@ export function normalizeStickerControls(value: unknown): StickerControls {
       ANTIALIAS_SCALE_MIN,
       ANTIALIAS_SCALE_MAX,
       DEFAULT_ANTIALIAS_SCALE,
+    ),
+    flash:
+      typeof input.flash === 'boolean'
+        ? input.flash
+        : DEFAULT_STICKER_CONTROLS.flash,
+    flashStops: clampNumber(
+      input.flashStops,
+      STICKER_FLASH_STOPS_MIN,
+      STICKER_FLASH_STOPS_MAX,
+      DEFAULT_STICKER_CONTROLS.flashStops,
     ),
     shadow: {
       offsetX: clampNumber(

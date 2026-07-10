@@ -36,6 +36,7 @@ export function controlsToSearch(controls: StickerControls): StickerSearch {
   put('tl', controls.tilt ? 1 : 0, d.tilt ? 1 : 0)
   put('it', controls.iconTilt ? 1 : 0, d.iconTilt ? 1 : 0)
   put('aa', controls.antialiasScale, d.antialiasScale)
+  if (controls.flash && controls.flashStops > 0) search.fx = formatNumber(controls.flashStops)
 
   put('sx', controls.shadow.offsetX, d.shadow.offsetX)
   put('sy', controls.shadow.offsetY, d.shadow.offsetY)
@@ -61,6 +62,8 @@ export function searchToControls(search: StickerSearch): StickerControls {
     return typeof value === 'string' && value.length > 0 ? value : undefined
   }
 
+  const flashStops = num(get('fx'))
+
   return normalizeStickerControls({
     text: get('t'),
     flavor: get('fl'),
@@ -73,6 +76,8 @@ export function searchToControls(search: StickerSearch): StickerControls {
     tilt: bool(get('tl')),
     iconTilt: bool(get('it')),
     antialiasScale: num(get('aa')),
+    flash: flashStops !== undefined && flashStops > 0,
+    flashStops,
     shadow: {
       offsetX: num(get('sx')),
       offsetY: num(get('sy')),
@@ -130,4 +135,8 @@ function colorList(v: string | undefined): string[] | undefined {
 function bool(v: string | undefined): boolean | undefined {
   if (v === undefined) return undefined
   return v === '1' || v === 'true'
+}
+
+function formatNumber(value: number): string {
+  return String(Number(value.toFixed(2)))
 }

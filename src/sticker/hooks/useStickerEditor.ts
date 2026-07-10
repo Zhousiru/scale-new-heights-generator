@@ -5,11 +5,13 @@ import {
   randomGradientPair,
   randomVividColors,
 } from '../utils/color'
+import { generatedFileName } from '../../shared/utils/fileName'
+import { saveToolSearch, searchRecordKey } from '../../shared/utils/toolState'
+import { useRenderedPreview } from '../../shared/hooks/useRenderedPreview'
 import {
   cancelPendingPreviews,
   exportStickerBlob,
   renderStickerPreview,
-  type PreviewResult,
 } from '../worker/stickerWorker'
 import {
   DEFAULT_STICKER_CONTROLS,
@@ -33,34 +35,40 @@ function buildStickerUrl(controls: StickerControls, simpleMode = false): string 
   return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
 }
 
-function searchKey(search: Record<string, string>): string {
-  return Object.entries(search)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}=${value}`)
-    .join('&')
+function hasStickerText(controls: StickerControls): boolean {
+  return controls.text.length > 0
 }
 
 export function useStickerEditor() {
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
   const isSimpleMode = search[SIMPLE_MODE_PARAM] === SIMPLE_MODE_VALUE
-  const currentSearchKey = useMemo(() => searchKey(search), [search])
+  const currentSearchKey = useMemo(() => searchRecordKey(search), [search])
   const lastWrittenSearchKey = useRef(currentSearchKey)
 
   const [controls, setControls] = useState<StickerControls>(() =>
     searchToControls(search),
   )
-  const [preview, setPreview] = useState<PreviewResult | null>(null)
-  const [previewError, setPreviewError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
-  const [isRendering, setIsRendering] = useState(false)
   // 复制反馈：记录刚复制成功的按钮，短暂显示「已复制」。
   const [copied, setCopied] = useState<CopiedTarget | null>(null)
-  const [renderControls, setRenderControls] = useState(controls)
+  const {
+    renderControls,
+    setRenderControls,
+    preview,
+    previewError,
+    setPreviewError,
+    isRendering,
+  } = useRenderedPreview({
+    controls,
+    delayMs: 250,
+    hasContent: hasStickerText,
+    render: renderStickerPreview,
+    cancel: cancelPendingPreviews,
+  })
 
   useEffect(() => {
-    const timer = setTimeout(() => setRenderControls(controls), 250)
-    return () => clearTimeout(timer)
+    saveToolSearch('sticker', controlsToSearch(controls))
   }, [controls])
 
   // URL query 发生外部变化（例如浏览器前进/后退）时，回灌到编辑状态。
@@ -71,13 +79,13 @@ export function useStickerEditor() {
     setControls(nextControls)
     setRenderControls(nextControls)
     lastWrittenSearchKey.current = currentSearchKey
-  }, [currentSearchKey, search])
+  }, [currentSearchKey, search, setRenderControls])
 
   // 同步控件 → URL query（用 replace，避免刷屏历史记录）。
   useEffect(() => {
     const nextSearch = controlsToSearch(renderControls)
     if (isSimpleMode) nextSearch[SIMPLE_MODE_PARAM] = SIMPLE_MODE_VALUE
-    lastWrittenSearchKey.current = searchKey(nextSearch)
+    lastWrittenSearchKey.current = searchRecordKey(nextSearch)
     void navigate({
       to: '.',
       search: () => nextSearch,
@@ -85,51 +93,7 @@ export function useStickerEditor() {
     })
   }, [renderControls, isSimpleMode, navigate])
 
-  useEffect(() => {
-    if (renderControls.text.length === 0) {
-      setPreview((prev) => {
-        prev?.bitmap.close()
-        return null
-      })
-      setPreviewError(null)
-      setIsRendering(false)
-      return
-    }
-
-    let active = true
-    setPreviewError(null)
-    setIsRendering(true)
-
-    void renderStickerPreview(renderControls)
-      .then((result) => {
-        if (active) {
-          setPreview((prev) => {
-            prev?.bitmap.close()
-            return result
-          })
-          setIsRendering(false)
-        } else {
-          result.bitmap.close()
-        }
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        const message = error instanceof Error ? error.message : '渲染失败。'
-        setPreview((prev) => {
-          prev?.bitmap.close()
-          return null
-        })
-        setPreviewError(message)
-        setIsRendering(false)
-      })
-
-    return () => {
-      active = false
-      cancelPendingPreviews()
-    }
-  }, [renderControls])
-
-  const hasText = controls.text.length > 0
+  const hasText = hasStickerText(controls)
 
   const updateControl = <K extends keyof StickerControls>(
     key: K,
@@ -224,11 +188,11 @@ export function useStickerEditor() {
     if (!hasText) return
     setIsExporting(true)
     try {
-      const blob = await exportStickerBlob(controls)
-      const url = URL.createObjectURL(blob)
+      const result = await exportStickerBlob(controls)
+      const url = URL.createObjectURL(result.blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'sticker.png'
+      a.download = generatedFileName('sticker', controls.text, result.extension)
       a.click()
       URL.revokeObjectURL(url)
     } catch (error: unknown) {
@@ -247,12 +211,12 @@ export function useStickerEditor() {
   const handleCopyImage = async () => {
     if (!hasText) return
     try {
-      const blob = await exportStickerBlob(controls)
+      const result = await exportStickerBlob(controls)
       if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
         throw new Error('clipboard-unavailable')
       }
       await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
+        new ClipboardItem({ [result.mime]: result.blob }),
       ])
       flashCopied('image')
     } catch {
@@ -293,5 +257,6 @@ export function useStickerEditor() {
     handleExport,
     handleCopyImage,
     handleCopyLink,
+    exportLabel: controls.flash ? '导出 HDR 图' : '导出 PNG',
   }
 }
