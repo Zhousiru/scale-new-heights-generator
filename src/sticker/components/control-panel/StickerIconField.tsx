@@ -1,6 +1,7 @@
 import { Button } from '../../../shared/ui/button'
 import { Input } from '../../../shared/ui/input'
-import type { StickerControls } from '../../config/defaults'
+import { FieldLabel } from '../../../shared/components/FieldLabel'
+import { DEFAULT_STICKER_CONTROLS, type StickerControls } from '../../config/defaults'
 
 interface StickerIconFieldProps {
   icon: string
@@ -15,8 +16,13 @@ export function StickerIconField({
   updateControl,
 }: StickerIconFieldProps) {
   return (
-    <label className="field icon-field">
-      <span className="field-label">前缀图标</span>
+    <div className="field icon-field">
+      <FieldLabel
+        isDirty={icon !== DEFAULT_STICKER_CONTROLS.icon}
+        onReset={() => updateControl('icon', DEFAULT_STICKER_CONTROLS.icon)}
+      >
+        前缀图标
+      </FieldLabel>
       <div className="icon-input-wrap">
         <Input
           className="icon-input"
@@ -46,6 +52,6 @@ export function StickerIconField({
       >
         找图标
       </a>
-    </label>
+    </div>
   )
 }

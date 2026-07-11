@@ -6,7 +6,7 @@ import {
   randomVividColors,
 } from '../utils/color'
 import { generatedFileName } from '../../shared/utils/fileName'
-import { saveToolSearch, searchRecordKey } from '../../shared/utils/toolState'
+import { saveToolSearch, searchRecordKey, toolUrl } from '../../shared/utils/tool'
 import { useRenderedPreview } from '../../shared/hooks/useRenderedPreview'
 import {
   cancelPendingPreviews,
@@ -31,10 +31,9 @@ const SIMPLE_MODE_PARAM = 'm'
 const SIMPLE_MODE_VALUE = 'simple'
 
 function buildStickerUrl(controls: StickerControls, simpleMode = false): string {
-  const params = new URLSearchParams(controlsToSearch(controls))
-  if (simpleMode) params.set(SIMPLE_MODE_PARAM, SIMPLE_MODE_VALUE)
-  const query = params.toString()
-  return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
+  const search = controlsToSearch(controls)
+  if (simpleMode) search[SIMPLE_MODE_PARAM] = SIMPLE_MODE_VALUE
+  return toolUrl('sticker', search)
 }
 
 function hasStickerText(controls: StickerControls): boolean {

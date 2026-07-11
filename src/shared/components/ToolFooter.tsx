@@ -1,25 +1,23 @@
 import { Icon } from '@iconify/react'
-import { Link } from '@tanstack/react-router'
+import { loadToolSearch, toolUrl, type Tool } from '../utils/tool'
 
 interface ToolFooterProps {
-  to: '/' | '/avatar'
+  tool: Tool
   icon: string
   label: string
-  search: Record<string, string>
 }
 
 export function ToolFooter({
-  to,
+  tool,
   icon,
   label,
-  search,
 }: ToolFooterProps) {
   return (
     <div className="footer-links">
-      <Link className="footer-link" to={to} search={search}>
+      <a className="footer-link" href={toolUrl(tool, loadToolSearch(tool))}>
         <Icon icon={icon} />
         {label}
-      </Link>
+      </a>
       <a
         className="footer-link"
         href="http://go/^"

@@ -12,19 +12,23 @@ import {
 } from '../worker/avatarWorker'
 import { generatedFileName } from '../../shared/utils/fileName'
 import { useRenderedPreview } from '../../shared/hooks/useRenderedPreview'
-import { saveToolSearch, searchRecordKey } from '../../shared/utils/toolState'
+import { saveToolSearch, searchRecordKey, toolUrl } from '../../shared/utils/tool'
 
 export type CopiedTarget = 'image' | 'link'
 
-function buildAvatarUrl(controls: AvatarControls): string {
-  const params = new URLSearchParams(controlsToSearch(controls))
-  const query = params.toString()
-  return `${location.origin}${location.pathname}${query ? `?${query}` : ''}`
+const SIMPLE_MODE_PARAM = 'm'
+const SIMPLE_MODE_VALUE = 'simple'
+
+function buildAvatarUrl(controls: AvatarControls, simpleMode = false): string {
+  const search = controlsToSearch(controls)
+  if (simpleMode) search[SIMPLE_MODE_PARAM] = SIMPLE_MODE_VALUE
+  return toolUrl('avatar', search)
 }
 
 export function useAvatarEditor() {
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
+  const isSimpleMode = search[SIMPLE_MODE_PARAM] === SIMPLE_MODE_VALUE
   const currentSearchKey = useMemo(() => searchRecordKey(search), [search])
   const lastWrittenSearchKey = useRef(currentSearchKey)
 
@@ -62,13 +66,14 @@ export function useAvatarEditor() {
 
   useEffect(() => {
     const nextSearch = controlsToSearch(renderControls)
+    if (isSimpleMode) nextSearch[SIMPLE_MODE_PARAM] = SIMPLE_MODE_VALUE
     lastWrittenSearchKey.current = searchRecordKey(nextSearch)
     void navigate({
       to: '.',
       search: () => nextSearch,
       replace: true,
     })
-  }, [renderControls, navigate])
+  }, [renderControls, isSimpleMode, navigate])
 
   const hasText = hasAvatarText(controls.text)
 
@@ -123,7 +128,7 @@ export function useAvatarEditor() {
   }
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(buildAvatarUrl(controls))
+    await navigator.clipboard.writeText(buildAvatarUrl(controls, true))
     flashCopied('link')
   }
 
@@ -135,7 +140,9 @@ export function useAvatarEditor() {
     isExporting,
     copied,
     hasText,
-    shareUrl: buildAvatarUrl(controls),
+    isSimpleMode,
+    shareUrl: buildAvatarUrl(controls, true),
+    editorUrl: buildAvatarUrl(controls),
     updateControl,
     handleExport,
     handleCopyImage,

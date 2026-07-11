@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Slider } from '../ui/slider'
 import { cn } from '../utils/cn'
+import { FieldLabel } from './FieldLabel'
 
 interface SliderFieldProps {
   className?: string
@@ -9,6 +10,7 @@ interface SliderFieldProps {
   min: number
   step?: number
   value: number
+  defaultValue?: number
   valueLabel?: ReactNode
   onValueChange: (value: number) => void
 }
@@ -20,12 +22,22 @@ export function SliderField({
   min,
   step,
   value,
+  defaultValue,
   valueLabel = value,
   onValueChange,
 }: SliderFieldProps) {
+  const isDirty = defaultValue !== undefined && value !== defaultValue
+  const handleReset = () => {
+    if (defaultValue !== undefined) {
+      onValueChange(defaultValue)
+    }
+  }
+
   return (
-    <label className={cn('field field-slider', className)}>
-      <span className="field-label">{label}</span>
+    <div className={cn('field field-slider', className)}>
+      <FieldLabel isDirty={isDirty} onReset={handleReset}>
+        {label}
+      </FieldLabel>
       <Slider
         min={min}
         max={max}
@@ -34,6 +46,6 @@ export function SliderField({
         onValueChange={onValueChange}
       />
       <span className="field-value">{valueLabel}</span>
-    </label>
+    </div>
   )
 }

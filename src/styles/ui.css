@@ -7,7 +7,6 @@
   padding: 0.375rem 0.625rem;
   border: 1px solid transparent;
   border-radius: calc(var(--radius) - 0.125rem);
-  font-weight: 500;
   line-height: 1.25;
   text-decoration: none;
   white-space: nowrap;
@@ -53,7 +52,7 @@
 
 .ui-button-active {
   border-color: var(--control-active-border);
-  color: var(--foreground);
+  color: var(--primary);
   background: var(--control-active-bg);
 }
 
@@ -74,7 +73,7 @@
 
 .ui-button-secondary.ui-button-active {
   border-color: var(--control-active-border);
-  color: var(--foreground);
+  color: var(--primary);
   background: var(--control-active-bg);
 }
 

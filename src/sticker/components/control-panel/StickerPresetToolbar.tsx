@@ -3,9 +3,10 @@ import { Icon } from '@iconify/react'
 import { AngleKnob } from '../../../shared/components/AngleKnob'
 import { Button } from '../../../shared/ui/button'
 import { Select } from '../../../shared/ui/select'
-import type {
-  StickerControls,
-  StickerEnvelopeControls,
+import {
+  defaultGradientAngle,
+  type StickerControls,
+  type StickerEnvelopeControls,
 } from '../../config/defaults'
 import {
   STICKER_PRESET_GROUPS,
@@ -86,15 +87,15 @@ export function StickerPresetToolbar({
         {controls.envelope.colors.map((color, index) => (
           <Fragment key={index}>
             {controls.envelope.colors.length < 3 && (
-              <Button
+              <button
                 className="swatch-insert"
-                variant="ghost"
-                size="icon"
                 type="button"
                 aria-label="在此处插入颜色"
                 title="在此处插入颜色"
                 onClick={() => addColor(index)}
-              />
+              >
+                <Icon icon="tabler:circle-dashed-plus" />
+              </button>
             )}
             <div className="color-swatch" style={{ backgroundColor: color }}>
               <input
@@ -118,15 +119,15 @@ export function StickerPresetToolbar({
           </Fragment>
         ))}
         {controls.envelope.colors.length < 3 && (
-          <Button
+          <button
             className="swatch-insert"
-            variant="ghost"
-            size="icon"
             type="button"
             aria-label="在末尾添加颜色"
             title="在末尾添加颜色"
-            onClick={() => addColor()}
-          />
+            onClick={() => addColor(controls.envelope.colors.length)}
+          >
+            <Icon icon="tabler:circle-dashed-plus" />
+          </button>
         )}
       </div>
 
@@ -142,6 +143,7 @@ export function StickerPresetToolbar({
       </Button>
       <AngleKnob
         value={controls.envelope.gradientAngle}
+        defaultValue={activePreset ? activePreset.gradientAngle : defaultGradientAngle(controls.icon)}
         onChange={(value) => updateEnvelope('gradientAngle', value)}
       />
     </div>

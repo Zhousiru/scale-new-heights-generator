@@ -1,5 +1,6 @@
 import { Button } from '../../../shared/ui/button'
-import type { StickerFlavor } from '../../config/defaults'
+import { FieldLabel } from '../../../shared/components/FieldLabel'
+import { DEFAULT_STICKER_CONTROLS, type StickerFlavor } from '../../config/defaults'
 
 const STYLE_OPTIONS: {
   id: StickerFlavor
@@ -31,7 +32,12 @@ export function StickerStyleField({
 }: StickerStyleFieldProps) {
   return (
     <div className="field style-field">
-      <span className="field-label">样式</span>
+      <FieldLabel
+        isDirty={flavor !== DEFAULT_STICKER_CONTROLS.flavor}
+        onReset={() => updateFlavor(DEFAULT_STICKER_CONTROLS.flavor)}
+      >
+        样式
+      </FieldLabel>
       <div className="style-toggle">
         {STYLE_OPTIONS.map((style) => (
           <Button

@@ -46,7 +46,7 @@ export const DEFAULT_AVATAR_CONTROLS: AvatarControls = {
   rotation: 0,
   gradientAngle: 135,
   fontScale: 1,
-  fontWeight: 550,
+  fontWeight: 600,
   lineHeight: 1.1,
   flash: false,
   flashStops: DEFAULT_FLASH_STOPS,

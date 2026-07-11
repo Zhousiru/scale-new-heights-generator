@@ -1,11 +1,13 @@
 import { AdvancedSection } from '../../../shared/components/AdvancedSection'
 import { Button } from '../../../shared/ui/button'
+import { FieldLabel } from '../../../shared/components/FieldLabel'
 import { HdrControls } from '../../../shared/components/HdrControls'
 import { SliderField } from '../../../shared/components/SliderField'
-import type {
-  StickerControls,
-  StickerEnvelopeControls,
-  StickerPaddingControls,
+import {
+  DEFAULT_STICKER_CONTROLS,
+  type StickerControls,
+  type StickerEnvelopeControls,
+  type StickerPaddingControls,
 } from '../../config/defaults'
 
 interface StickerAdvancedControlsProps {
@@ -33,7 +35,20 @@ export function StickerAdvancedControls({
   return (
     <AdvancedSection>
       <div className="field">
-        <span className="field-label">变换</span>
+        <FieldLabel
+          isDirty={
+            controls.iconTilt !== DEFAULT_STICKER_CONTROLS.iconTilt ||
+            controls.tilt !== DEFAULT_STICKER_CONTROLS.tilt ||
+            controls.peak !== DEFAULT_STICKER_CONTROLS.peak
+          }
+          onReset={() => {
+            updateControl('iconTilt', DEFAULT_STICKER_CONTROLS.iconTilt)
+            updateControl('tilt', DEFAULT_STICKER_CONTROLS.tilt)
+            updateControl('peak', DEFAULT_STICKER_CONTROLS.peak)
+          }}
+        >
+          变换
+        </FieldLabel>
         <div className="toggle-group">
           <Button
             className="peak-toggle"
@@ -89,6 +104,7 @@ export function StickerAdvancedControls({
         max={5}
         step={0.1}
         value={controls.antialiasScale}
+        defaultValue={DEFAULT_STICKER_CONTROLS.antialiasScale}
         valueLabel={`${controls.antialiasScale.toFixed(1)}x`}
         onValueChange={(value) => updateControl('antialiasScale', value)}
       />
@@ -98,6 +114,7 @@ export function StickerAdvancedControls({
         min={0}
         max={48}
         value={controls.envelope.outlineStrokeWidth}
+        defaultValue={DEFAULT_STICKER_CONTROLS.envelope.outlineStrokeWidth}
         onValueChange={(value) => updateEnvelope('outlineStrokeWidth', value)}
       />
 
@@ -106,6 +123,7 @@ export function StickerAdvancedControls({
         min={0}
         max={120}
         value={controls.padding.x}
+        defaultValue={DEFAULT_STICKER_CONTROLS.padding.x}
         onValueChange={(value) => updatePadding('x', value)}
       />
 
@@ -114,6 +132,7 @@ export function StickerAdvancedControls({
         min={0}
         max={120}
         value={controls.padding.y}
+        defaultValue={DEFAULT_STICKER_CONTROLS.padding.y}
         onValueChange={(value) => updatePadding('y', value)}
       />
 
@@ -123,6 +142,7 @@ export function StickerAdvancedControls({
         max={2}
         step={0.05}
         value={controls.lineHeight}
+        defaultValue={DEFAULT_STICKER_CONTROLS.lineHeight}
         valueLabel={controls.lineHeight.toFixed(2)}
         onValueChange={(value) => updateControl('lineHeight', value)}
       />

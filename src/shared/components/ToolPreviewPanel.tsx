@@ -1,13 +1,16 @@
-import { Icon } from '@iconify/react'
-import { CanvasPreview, PreviewActions } from '../../shared/components/ImagePreview'
-import { ToolFooter } from '../../shared/components/ToolFooter'
-import { UsageHintCarousel } from '../../shared/components/UsageHintCarousel'
-import { Button } from '../../shared/ui/button'
-import { loadToolSearch } from '../../shared/utils/toolState'
-import type { CopiedTarget } from '../hooks/useStickerEditor'
-import type { PreviewResult } from '../worker/stickerWorker'
+import {
+  CanvasPreview,
+  PreviewActions,
+  type PreviewResult,
+} from './ImagePreview'
+import { SimpleEditFooter } from './SimpleEditFooter'
+import { ToolFooter } from './ToolFooter'
+import { UsageHintCarousel } from './UsageHintCarousel'
+import type { Tool } from '../utils/tool'
 
-interface StickerPreviewPanelProps {
+export type CopiedTarget = 'image' | 'link'
+
+interface ToolPreviewPanelProps {
   preview: PreviewResult | null
   previewError: string | null
   isRendering: boolean
@@ -21,22 +24,13 @@ interface StickerPreviewPanelProps {
   onCopyImage: () => void
   onExport: () => void
   onCopyLink: () => void
+  placeholder: string
+  switchTool: Tool
+  switchIcon: string
+  switchLabel: string
 }
 
-function SimpleFooter({ editorUrl }: { editorUrl: string }) {
-  return (
-    <div className="simple-footer">
-      <Button variant="secondary" asChild>
-        <a href={editorUrl} target="_top">
-          <Icon icon="tabler:edit" />
-          编辑
-        </a>
-      </Button>
-    </div>
-  )
-}
-
-export function StickerPreviewPanel({
+export function ToolPreviewPanel({
   preview,
   previewError,
   isRendering,
@@ -50,7 +44,11 @@ export function StickerPreviewPanel({
   onCopyImage,
   onExport,
   onCopyLink,
-}: StickerPreviewPanelProps) {
+  placeholder,
+  switchTool,
+  switchIcon,
+  switchLabel,
+}: ToolPreviewPanelProps) {
   if (simpleMode) {
     return (
       <section className="panel panel-preview panel-preview-simple">
@@ -59,9 +57,9 @@ export function StickerPreviewPanel({
           previewError={previewError}
           isRendering={isRendering}
           hasContent={hasText}
-          placeholder="输入文字后预览"
+          placeholder={placeholder}
         />
-        <SimpleFooter editorUrl={editorUrl} />
+        <SimpleEditFooter editorUrl={editorUrl} />
       </section>
     )
   }
@@ -73,7 +71,7 @@ export function StickerPreviewPanel({
         previewError={previewError}
         isRendering={isRendering}
         hasContent={hasText}
-        placeholder="输入文字后预览"
+        placeholder={placeholder}
       />
       {hasText && (
         <PreviewActions
@@ -88,10 +86,9 @@ export function StickerPreviewPanel({
       )}
       {hasText && <UsageHintCarousel />}
       <ToolFooter
-        to="/avatar"
-        icon="tabler:user-square-rounded"
-        label="飞书头像"
-        search={loadToolSearch('avatar')}
+        tool={switchTool}
+        icon={switchIcon}
+        label={switchLabel}
       />
     </section>
   )

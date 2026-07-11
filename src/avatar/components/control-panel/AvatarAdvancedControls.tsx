@@ -2,6 +2,7 @@ import { AdvancedSection } from '../../../shared/components/AdvancedSection'
 import { HdrControls } from '../../../shared/components/HdrControls'
 import { SliderField } from '../../../shared/components/SliderField'
 import {
+  DEFAULT_AVATAR_CONTROLS,
   AVATAR_FONT_SCALE_MAX,
   AVATAR_FONT_SCALE_MIN,
   AVATAR_FONT_WEIGHT_MAX,
@@ -44,6 +45,7 @@ export function AvatarAdvancedControls({
         max={AVATAR_FONT_SCALE_MAX}
         step={0.01}
         value={controls.fontScale}
+        defaultValue={DEFAULT_AVATAR_CONTROLS.fontScale}
         valueLabel={`${Math.round(controls.fontScale * 100)}%`}
         onValueChange={(value) => updateControl('fontScale', value)}
       />
@@ -55,6 +57,7 @@ export function AvatarAdvancedControls({
         max={AVATAR_FONT_WEIGHT_MAX}
         step={AVATAR_FONT_WEIGHT_STEP}
         value={controls.fontWeight}
+        defaultValue={DEFAULT_AVATAR_CONTROLS.fontWeight}
         onValueChange={(value) => updateControl('fontWeight', value)}
       />
 
@@ -65,6 +68,7 @@ export function AvatarAdvancedControls({
         max={AVATAR_LINE_HEIGHT_MAX}
         step={0.01}
         value={controls.lineHeight}
+        defaultValue={DEFAULT_AVATAR_CONTROLS.lineHeight}
         valueLabel={controls.lineHeight.toFixed(2)}
         onValueChange={(value) => updateControl('lineHeight', value)}
       />
@@ -76,6 +80,7 @@ export function AvatarAdvancedControls({
         max={AVATAR_SIZE_MAX}
         step={64}
         value={controls.size}
+        defaultValue={DEFAULT_AVATAR_CONTROLS.size}
         onValueChange={(value) => updateControl('size', value)}
       />
     </AdvancedSection>

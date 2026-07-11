@@ -6,6 +6,7 @@ import {
 
 interface AngleKnobProps {
   value: number
+  defaultValue?: number
   label?: string
   inlineLabel?: string
   signed?: boolean
@@ -25,6 +26,7 @@ function angleFromPointer(cx: number, cy: number, clientX: number, clientY: numb
 
 export function AngleKnob({
   value,
+  defaultValue,
   label = '渐变角度',
   inlineLabel,
   signed = false,
@@ -91,15 +93,23 @@ export function AngleKnob({
   const lineX = CENTER + (TRACK_R - 7) * Math.cos(rad)
   const lineY = CENTER + (TRACK_R - 7) * Math.sin(rad)
 
+  const isDirty = defaultValue !== undefined && value !== defaultValue
+  const handleReset = () => {
+    if (defaultValue !== undefined) {
+      onChange(defaultValue)
+    }
+  }
+
   return (
     <button
       ref={wrapRef}
       type="button"
       className="knob-wrap"
-      title={`${label} ${displayValue}°`}
+      title={`${label} ${displayValue}°${isDirty ? '\n双击重置' : ''}`}
       aria-label={label}
       onPointerDown={startDrag}
       onKeyDown={handleKeyDown}
+      onDoubleClick={handleReset}
     >
       {inlineLabel && <span className="knob-label">{inlineLabel}</span>}
       <svg

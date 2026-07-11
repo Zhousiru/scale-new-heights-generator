@@ -58,7 +58,7 @@ export function AvatarModeStylePicker({
           >
             <AvatarModePreview mode={option.id} style={activeStyle} />
             <span className="avatar-mode-copy">
-              <span>{option.label}</span>
+              {option.label}
             </span>
           </Button>
 
@@ -80,7 +80,7 @@ export function AvatarModeStylePicker({
               label: (
                 <span className="avatar-style-option-content">
                   <AvatarModePreview mode={option.id} style={styleOption} />
-                  <span>{styleOption.label}</span>
+                  <span className="avatar-style-option-label">{styleOption.label}</span>
                 </span>
               ),
             }))}

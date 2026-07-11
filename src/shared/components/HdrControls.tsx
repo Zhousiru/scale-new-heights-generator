@@ -1,5 +1,6 @@
 import { Slider } from '../ui/slider'
 import { Button } from '../ui/button'
+import { FieldLabel } from './FieldLabel'
 import {
   DEFAULT_FLASH_STOPS,
   FLASH_STOPS_MAX,
@@ -16,13 +17,13 @@ interface HdrControlsProps {
 
 export function HdrControls({
   flashStops,
-  label = 'HDR 高亮',
+  label = '色彩增益',
   fieldClassName = 'field',
   onFlashStopsChange,
 }: HdrControlsProps) {
   const enable = () => {
     const accepted = window.confirm(
-      'HDR 高亮会让图片在支持的屏幕上明显变亮。提醒：不要高频发送打扰他人；日常建议控制在 +1 EV 以内。',
+      '色彩增益（HDR）会让图片在支持的屏幕上明显变亮。提醒：不要高频发送打扰他人；日常建议控制在 +1 EV 以内。',
     )
     if (accepted) onFlashStopsChange(DEFAULT_FLASH_STOPS)
   }
@@ -30,7 +31,7 @@ export function HdrControls({
   if (flashStops === 0) {
     return (
       <div className={fieldClassName}>
-        <span className="field-label">{label}</span>
+        <FieldLabel>{label}</FieldLabel>
         <Button
           className="field-action"
           variant="secondary"
@@ -38,7 +39,7 @@ export function HdrControls({
           type="button"
           onClick={enable}
         >
-          开启 HDR 高亮
+          开启色彩增益
         </Button>
       </div>
     )
@@ -46,7 +47,12 @@ export function HdrControls({
 
   return (
     <div className={fieldClassName}>
-      <span className="field-label">{label}</span>
+      <FieldLabel
+        isDirty={flashStops !== DEFAULT_FLASH_STOPS}
+        onReset={() => onFlashStopsChange(DEFAULT_FLASH_STOPS)}
+      >
+        {label}
+      </FieldLabel>
       <Slider
         min={FLASH_STOPS_MIN}
         max={FLASH_STOPS_MAX}
@@ -54,7 +60,9 @@ export function HdrControls({
         value={flashStops}
         onValueChange={onFlashStopsChange}
       />
-      <span className="field-value">{formatEv(flashStops)}</span>
+      <span className="field-value">
+        {formatEv(flashStops)}
+      </span>
     </div>
   )
 }

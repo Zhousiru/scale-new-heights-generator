@@ -1,12 +1,12 @@
 import { StickerControlsPanel } from './sticker/components/StickerControlsPanel'
-import { StickerPreviewPanel } from './sticker/components/StickerPreviewPanel'
+import { ToolPreviewPanel } from './shared/components/ToolPreviewPanel'
 import { useStickerEditor } from './sticker/hooks/useStickerEditor'
 
 function App() {
   const sticker = useStickerEditor()
 
   const previewPanel = (
-    <StickerPreviewPanel
+    <ToolPreviewPanel
       preview={sticker.preview}
       previewError={sticker.previewError}
       isRendering={sticker.isRendering}
@@ -20,6 +20,10 @@ function App() {
       onCopyImage={() => void sticker.handleCopyImage()}
       onExport={() => void sticker.handleExport()}
       onCopyLink={() => void sticker.handleCopyLink()}
+      placeholder="输入文字后预览"
+      switchTool="avatar"
+      switchIcon="tabler:user-square-rounded"
+      switchLabel="飞书头像"
     />
   )
 
