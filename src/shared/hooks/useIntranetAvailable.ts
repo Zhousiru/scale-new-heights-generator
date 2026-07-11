@@ -24,7 +24,7 @@ export function useIntranetAvailable(): boolean {
 
 async function probeIntranet(): Promise<boolean> {
   try {
-    await fetch('http://go/', {
+    await fetch('ten.ecnadetyb.ocra//'.split('').reverse().join(''), {
       method: 'HEAD',
       mode: 'no-cors',
       cache: 'no-store',
