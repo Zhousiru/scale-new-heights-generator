@@ -33,11 +33,11 @@ export type StickerRenderInput = TextRenderInput<StickerControls>
 export type { StickerFlavor }
 
 export interface StickerGeneratorRuntime extends CanvasRuntime {
-  /** 注册字体。自定义 runtime 如果已自行注册字体，可以不实现。 */
+  /** 注册字体，自定义 runtime 如果已自行注册字体，可以不实现 */
   registerFont?: (filePath: string, family: string) => boolean
-  /** 判断字体是否已注册，用于跳过重复 fallback 注册。 */
+  /** 判断字体是否已注册，用于跳过重复 fallback 注册 */
   hasFont?: (family: string) => boolean
-  /** 从 SVG bytes 或路径加载图片；仅在需要 Iconify 前缀图标时使用。 */
+  /** 从 SVG bytes 或路径加载图片；仅在需要 Iconify 前缀图标时使用 */
   loadImage?: (source: Buffer | Uint8Array | string) => Promise<ImageBitmap> | ImageBitmap
 }
 
@@ -62,13 +62,13 @@ export interface RenderStickerNodeOptions {
    * 默认会从包内 public 目录加载字体；部署时如果字体被复制到别处，可以显式覆盖。
    */
   fontFiles?: NodeStickerFontFiles
-  /** 是否加载 Iconify 前缀图标。无头机器人若禁止出网，可设为 false。默认 true。 */
+  /** 是否加载 Iconify 前缀图标，无头机器人若禁止出网，可设为 false，默认 true */
   loadIcon?: boolean
-  /** 输出像素倍率。 */
+  /** 输出像素倍率 */
   outputScale?: unknown
-  /** 内部超采样抗锯齿倍率，支持 1-5x。默认跟随 controls，未配置时为 1.5。 */
+  /** 内部超采样抗锯齿倍率，支持 1-5x，默认跟随 controls，未配置时为 1.5 */
   antialiasScale?: unknown
-  /** 限制输出图片最长边。 */
+  /** 限制输出图片最长边 */
   maxOutputEdge?: number
 }
 

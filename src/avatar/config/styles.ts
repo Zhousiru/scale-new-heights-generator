@@ -26,6 +26,7 @@ export type AvatarStyle =
   | 'orange'
   | 'rose'
 
+/** 头像样式预设表 */
 export const AVATAR_STYLES: Record<AvatarStyle, AvatarStylePreset> = {
   aurora: {
     id: 'aurora',
@@ -158,4 +159,5 @@ export const AVATAR_STYLES: Record<AvatarStyle, AvatarStylePreset> = {
   },
 }
 
+/** 头像样式预设列表 */
 export const AVATAR_STYLE_LIST = Object.values(AVATAR_STYLES)

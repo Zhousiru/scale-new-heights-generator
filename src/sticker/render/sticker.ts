@@ -49,20 +49,21 @@ import {
   type RenderResult,
 } from './types'
 
-// 导出时文字（内容）本身归一化到的目标高度。注意这里参照的是「文字/内容」的高度
-// （不含描边），而非含描边的画布总高度。这样描边加粗时，裁剪后的画布随之外扩变大、
-// 文字尺寸保持稳定，导出图片（以及预览的棋盘格背景）会真实反映描边厚度的变化。
+/** 导出时文字内容归一化到的目标高度，不含描边外扩 */
 const EXPORT_TEXT_HEIGHT = 150
+/** 默认导出图片最长边限制 */
 const MAX_EXPORT_EDGE = 2048
+/** 字节范描边颜色加深比例 */
 const BYTE_OUTLINE_DARKEN = 0.4
+/** 字节范前景颜色提亮比例 */
 const BYTE_FOREGROUND_LIGHTEN = 0.4
 
 export interface RenderStickerOptions {
-  /** 导出像素倍率。浏览器 UI 默认 1；Node/机器人可用 2~3 生成更高清图片。 */
+  /** 导出像素倍率，浏览器 UI 默认 1；Node/机器人可用 2~3 生成更高清图片 */
   outputScale?: number
-  /** 内部超采样倍率。默认跟随 controls，未配置时为 1.5，用于平滑斜线和斜切边缘。 */
+  /** 内部超采样倍率，默认跟随 controls，未配置时为 1.5，用于平滑斜线和斜切边缘 */
   antialiasScale?: number
-  /** 限制导出图片最长边，避免机器人上传过大图片。 */
+  /** 限制导出图片最长边，避免机器人上传过大图片 */
   maxOutputEdge?: number
 }
 

@@ -13,9 +13,13 @@ interface AngleKnobProps {
   onChange: (angle: number) => void
 }
 
+/** 角度旋钮 SVG 视口尺寸 */
 const SIZE = 40
+/** 角度旋钮中心点坐标 */
 const CENTER = SIZE / 2
+/** 角度旋钮轨道半径 */
 const TRACK_R = CENTER - 3
+/** 角度旋钮拖拽点半径 */
 const DOT_R = 3.5
 
 function angleFromPointer(cx: number, cy: number, clientX: number, clientY: number): number {

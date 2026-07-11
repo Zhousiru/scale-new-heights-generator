@@ -27,7 +27,9 @@ import { controlsToSearch, searchToControls } from '../config/searchParams'
 
 export type CopiedTarget = 'image' | 'link'
 
+/** 简易模式 URL 参数名 */
 const SIMPLE_MODE_PARAM = 'm'
+/** 简易模式 URL 参数值 */
 const SIMPLE_MODE_VALUE = 'simple'
 
 function buildStickerUrl(controls: StickerControls, simpleMode = false): string {

@@ -99,6 +99,54 @@
   text-underline-offset: 0.25rem;
 }
 
+.ui-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: oklch(0 0 0 / 45%);
+}
+
+.ui-dialog-content {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: 61;
+  inline-size: calc(100vw - 2rem);
+  max-inline-size: 22rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow:
+    0 20px 25px -5px oklch(0 0 0 / 10%),
+    0 8px 10px -6px oklch(0 0 0 / 10%);
+}
+
+.ui-dialog-content:focus-visible {
+  outline: none;
+}
+
+.ui-dialog-title {
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.ui-dialog-description {
+  margin-block-start: 0.5rem;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+
+.ui-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}
+
 .ui-input,
 .ui-textarea,
 .ui-select-trigger {

@@ -12,8 +12,9 @@ import {
   type GlyphTransform,
 } from './types'
 
-const FONT_STYLE = 'normal'
+/** 字体加载后用于验证字形可用性的采样文本 */
 const FONT_SAMPLE_TEXT = '勇攀高峰测试Aa0123456789'
+/** 判断整段文本以中文为主的最小汉字占比 */
 const CHINESE_DOMINANT_MIN_RATIO = 0.2
 
 export interface StickerFontDescriptor {
@@ -28,6 +29,7 @@ export interface StickerFontDescriptor {
   transform: GlyphTransform
 }
 
+/** 贴纸风味到字体文件与字形整形参数的映射 */
 const FONT_REGISTRY: Record<StickerFlavor, StickerFontDescriptor> = {
   snh: {
     family: 'DouyinSansBold',
@@ -111,7 +113,7 @@ export function fontSpec(
     ...(usesFeatureFont(flavor, grapheme, chineseDominant) ? [`"${family}"`] : []),
     ...CANVAS_FONT_FAMILIES.map((name) => `"${name}"`),
   ].join(', ')
-  return `${FONT_STYLE} ${weight} ${fontSize}px ${families}`
+  return `normal ${weight} ${fontSize}px ${families}`
 }
 
 const fontLoadPromises = new Map<StickerFlavor, Promise<void>>()
@@ -131,12 +133,12 @@ export async function ensureStickerFontLoaded(
   let promise = fontLoadPromises.get(flavor)
   if (!promise) {
     const descriptor = FONT_REGISTRY[flavor]
-    const spec = `${FONT_STYLE} ${descriptor.weight} 16px "${descriptor.family}"`
+    const spec = `normal ${descriptor.weight} 16px "${descriptor.family}"`
 
     promise = loadFontFace({
       family: descriptor.family,
       source: `url(${import.meta.env.BASE_URL}${descriptor.file})`,
-      style: FONT_STYLE,
+      style: 'normal',
       weight: descriptor.weight,
       verify: {
         spec,

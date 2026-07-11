@@ -1,7 +1,5 @@
-// Iconify 图标是 SVG。`createImageBitmap` 无法在 Web Worker 内解码 SVG blob
-//（Chromium 只在主线程栅格化 SVG），所以贴纸 worker 无法自行拉取图标。本模块
-// 运行在主线程：它拉取一次 SVG（缓存为资源），并在每次渲染时栅格化出一张新的
-// ImageBitmap，以便把位图转移进 worker 而不破坏缓存。
+// Iconify 图标是 SVG。`createImageBitmap` 无法在 Web Worker 内解码 SVG blob。
+/** 图标 SVG 在主线程栅格化后的目标边长 */
 const ICON_RASTER_SIZE = 256
 
 // 加载后的图标：位图 + 是否为「原生彩色」。

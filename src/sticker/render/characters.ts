@@ -1,8 +1,13 @@
+/** CJK 字素匹配正则 */
 const CJK_PATTERN =
   /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/u
+/** 常用汉字字素匹配正则 */
 const COMMON_HAN_PATTERN = /^[\u3007\u4E00-\u9FFF]$/u
+/** 拉丁字素匹配正则 */
 const LATIN_PATTERN = /\p{Script=Latin}/u
+/** 数字字素匹配正则 */
 const NUMBER_PATTERN = /\p{Number}/u
+/** 西文词内符号匹配正则 */
 const WORD_SYMBOL_PATTERN = /['’._:+/@#&%-]/u
 
 export function isCjkGrapheme(grapheme: string): boolean {

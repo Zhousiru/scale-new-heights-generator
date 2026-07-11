@@ -12,7 +12,6 @@ import {
   DEFAULT_FLASH_STOPS,
   FLASH_STOPS_MAX,
   FLASH_STOPS_MIN,
-  FLASH_STOPS_STEP,
 } from '../../shared/config/hdr'
 
 export interface StickerShadowControls {
@@ -26,7 +25,7 @@ export interface StickerShadowControls {
 export interface StickerEnvelopeControls {
   outlineStrokeWidth: number
   edgeWidth: number
-  /** 渐变颜色停靠点，长度 1~3。单色时渲染层会自动补出同色系深色。 */
+  /** 渐变颜色停靠点，长度 1~3，单色时渲染层会自动补出同色系深色 */
   colors: string[]
   gradientAngle: number
   edgeOpacity: number
@@ -42,7 +41,9 @@ export interface StickerPaddingControls {
 //   • bs  (字节范)：彩色渐变字形带同色系深色轮廓——优设标题黑字面。
 export type StickerFlavor = 'snh' | 'bs'
 
+/** 贴纸渲染风味列表 */
 export const STICKER_FLAVORS: StickerFlavor[] = ['snh', 'bs']
+/** 每种贴纸风味的默认描边厚度 */
 export const STICKER_DEFAULT_OUTLINE_WIDTH: Record<StickerFlavor, number> = {
   snh: 20,
   bs: 14,
@@ -61,39 +62,36 @@ export {
   normalizeRenderScale,
 }
 
-export const STICKER_FLASH_STOPS_MIN = FLASH_STOPS_MIN
-export const STICKER_FLASH_STOPS_MAX = FLASH_STOPS_MAX
-export const STICKER_FLASH_STOPS_STEP = FLASH_STOPS_STEP
-
 export interface StickerControls {
   text: string
-  /** 使用哪种渲染风味（字面 + 配色/描边模型）。 */
+  /** 使用哪种渲染风味（字面 + 配色/描边模型） */
   flavor: StickerFlavor
-  /** Iconify 图标 id（如 `mdi:rocket`），作为前缀字形渲染；留空则禁用。 */
+  /** Iconify 图标 id（如 `mdi:rocket`），作为前缀字形渲染；留空则禁用 */
   icon: string
   fontSize: number
   letterSpacing: number
-  /** 换行行间距相对 fontSize 的倍率。 */
+  /** 换行行间距相对 fontSize 的倍率 */
   lineHeight: number
   alternatingOffset: number
-  /** 高峰模式：开启时词以错位高度攀登，关闭时对齐平铺。 */
+  /** 高峰模式：开启时词以错位高度攀登，关闭时对齐平铺 */
   peak: boolean
-  /** 文本倾斜：开启时应用字面固有的旋转/斜切；关闭时字形直立（仅保留缩放）。 */
+  /** 文本倾斜：开启时应用字面固有的旋转/斜切；关闭时字形直立（仅保留缩放） */
   tilt: boolean
-  /** 图标倾斜：开启时前缀图标跟随字面旋转/斜切。 */
+  /** 图标倾斜：开启时前缀图标跟随字面旋转/斜切 */
   iconTilt: boolean
-  /** 内部超采样倍率，用于平滑斜线和斜切边缘。 */
+  /** 内部超采样倍率，用于平滑斜线和斜切边缘 */
   antialiasScale: number
-  /** 开启后导出 Ultra HDR JPEG gain map；普通路径仍导出 PNG。 */
+  /** 开启后导出 Ultra HDR JPEG gain map；普通路径仍导出 PNG */
   flash: boolean
-  /** HDR 增益，单位 EV stops；maxContentBoost = 2^flashStops。 */
+  /** HDR 增益，单位 EV stops；maxContentBoost = 2^flashStops */
   flashStops: number
   shadow: StickerShadowControls
   envelope: StickerEnvelopeControls
-  /** 裁剪结果四周的透明留白，按轴独立设置。 */
+  /** 裁剪结果四周的透明留白，按轴独立设置 */
   padding: StickerPaddingControls
 }
 
+/** 贴纸工具默认控件状态 */
 export const DEFAULT_STICKER_CONTROLS: StickerControls = {
   text: '高峰不常有',
   flavor: 'snh',
@@ -198,8 +196,8 @@ export function normalizeStickerControls(value: unknown): StickerControls {
         : DEFAULT_STICKER_CONTROLS.flash,
     flashStops: clampNumber(
       input.flashStops,
-      STICKER_FLASH_STOPS_MIN,
-      STICKER_FLASH_STOPS_MAX,
+      FLASH_STOPS_MIN,
+      FLASH_STOPS_MAX,
       DEFAULT_STICKER_CONTROLS.flashStops,
     ),
     shadow: {

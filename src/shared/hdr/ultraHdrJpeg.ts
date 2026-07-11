@@ -4,7 +4,7 @@ import {
   writeJpegGainMap,
   type HdrifyImage,
 } from 'hdrify'
-import { DEFAULT_FLASH_STOPS } from '../config/hdr'
+import { ENABLED_FLASH_STOPS } from '../config/hdr'
 import { getContext } from '../render/canvas'
 
 export interface UltraHdrJpegOptions {
@@ -12,8 +12,14 @@ export interface UltraHdrJpegOptions {
   quality?: number
 }
 
-const MIME = 'image/jpeg'
-const EXTENSION = 'jpg'
+/** Ultra HDR JPEG 的 MIME 类型 */
+export const ULTRA_HDR_JPEG_MIME = 'image/jpeg'
+/** Ultra HDR JPEG 的下载扩展名 */
+export const ULTRA_HDR_JPEG_EXTENSION = 'jpg'
+/** 开始对近不透明像素施加 HDR 增益的 alpha 阈值 */
+const HDR_BOOST_ALPHA_START = 0.65
+/** 完全施加 HDR 增益的 alpha 阈值 */
+const HDR_BOOST_ALPHA_END = 0.95
 
 export function encodeUltraHdrJpegFromCanvas(
   canvas: OffscreenCanvas,
@@ -31,11 +37,8 @@ export function encodeUltraHdrJpegFromCanvas(
     quality: options.quality ?? 94,
     format: 'ultrahdr',
   })
-  return new Blob([bytes], { type: MIME })
+  return new Blob([new Uint8Array(bytes)], { type: ULTRA_HDR_JPEG_MIME })
 }
-
-export const ULTRA_HDR_JPEG_MIME = MIME
-export const ULTRA_HDR_JPEG_EXTENSION = EXTENSION
 
 function canvasToHdrImage(
   canvas: OffscreenCanvas,
@@ -77,10 +80,12 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 }
 
 function contentBoostMask(alpha: number): number {
-  return smoothstep(0.08, 0.4, alpha)
+  // HDR JPEG has no alpha; transparent edges are composited onto white.
+  // Boost only near-opaque content to avoid lighting up white AA fringes.
+  return smoothstep(HDR_BOOST_ALPHA_START, HDR_BOOST_ALPHA_END, alpha)
 }
 
 function resolveFlashStops(stops: number | undefined): number {
-  if (stops === undefined || !Number.isFinite(stops)) return DEFAULT_FLASH_STOPS
+  if (stops === undefined || !Number.isFinite(stops)) return ENABLED_FLASH_STOPS
   return stops
 }

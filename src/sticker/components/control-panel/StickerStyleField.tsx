@@ -2,6 +2,7 @@ import { Button } from '../../../shared/ui/button'
 import { FieldLabel } from '../../../shared/components/FieldLabel'
 import { DEFAULT_STICKER_CONTROLS, type StickerFlavor } from '../../config/defaults'
 
+/** 贴纸样式选项 */
 const STYLE_OPTIONS: {
   id: StickerFlavor
   label: string

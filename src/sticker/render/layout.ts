@@ -14,10 +14,6 @@ import {
   type StickerLayout,
 } from './types'
 
-// 词与词之间空格步进占空格自身宽度的比例。取 1 让空格保持字体的自然宽度，
-// 避免西文单词粘连（此前 0.35 在 Inter 下会挤没空格）。
-const SPACE_ADVANCE_SCALE = 1
-
 export function splitGraphemes(text: string): string[] {
   if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
     const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'grapheme' })
@@ -33,10 +29,8 @@ export function getAlternatingOffset(index: number, amplitude: number): number {
 
 export type GraphemeKind = 'space' | 'cjk' | 'word' | 'other'
 
-// 图形类 Emoji（含 ZWJ 连字序列 / 变体选择符）。它们以接近正方形的彩色字形绘制，
-// 若斜切成平行四边形会产生尖角，描边膨胀会把这些尖角变成杂散“尖峰”；因此保持直立。
-// eslint-disable-next-line no-misleading-character-class
-const EMOJI_PATTERN = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]|[\u200d\u{FE0F}\u{20E3}]/u
+/** 图形类 Emoji 匹配；命中后保持直立，避免斜切描边产生尖峰 */
+const EMOJI_PATTERN = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]|[\u200d\u{FE0F}\u{20E3}]/u // eslint-disable-line no-misleading-character-class
 
 // 对于永远不应被斜切的字素（彩色 Emoji 字形）返回 true。
 export function isEmojiGrapheme(grapheme: string): boolean {
@@ -181,10 +175,8 @@ function layoutLine(
 
     if (kind === 'space') {
       const measurement = options.measureGlyph(grapheme, options.fontSize)
-      const advanceWidth = Math.max(
-        0,
-        measurement.advanceWidth * SPACE_ADVANCE_SCALE,
-      )
+      // 空格保持字体自然宽度，避免西文单词粘连。
+      const advanceWidth = Math.max(0, measurement.advanceWidth)
       const spaceBounds = {
         minX: cursorX,
         minY: -measurement.ascent,

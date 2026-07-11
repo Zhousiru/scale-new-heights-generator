@@ -11,8 +11,11 @@ import type {
   StickerLayout,
 } from './types'
 
+/** Emoji 透明角裁切相对短边的比例 */
 const EMOJI_CORNER_CUT_RATIO = 1 / 30
+/** Emoji alpha 二值化阈值 */
 const EMOJI_ALPHA_THRESHOLD = 16
+/** Emoji 膨胀后反走样羽化距离 */
 const EMOJI_DILATION_FEATHER = 1
 
 // ---------------------------------------------------------------------------

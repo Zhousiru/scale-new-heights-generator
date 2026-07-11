@@ -6,14 +6,14 @@ import {
 
 interface StickerPresetSeed {
   text: string
-  /** 渐变颜色停靠点，长度 1~3。 */
+  /** 渐变颜色停靠点，长度 1~3 */
   colors: string[]
-  /** 仅用于极少数覆盖组默认值的场景；大多数预设不要显式写默认值。 */
+  /** 仅用于极少数覆盖组默认值的场景；大多数预设不要显式写默认值 */
   flavor?: StickerFlavor
   gradientAngle?: number
   outlineStrokeWidth?: number
   icon?: string
-  /** 圆形/徽章类图标不适合随文字斜切。 */
+  /** 圆形/徽章类图标不适合随文字斜切 */
   iconTilt?: boolean
 }
 
@@ -30,6 +30,7 @@ type PresetDefaults = Pick<
   'flavor' | 'gradientAngle' | 'outlineStrokeWidth' | 'icon' | 'iconTilt'
 >
 
+/** 贴纸预设的全局默认参数 */
 const PRESET_DEFAULTS: PresetDefaults = {
   flavor: 'snh',
   gradientAngle: 180,
@@ -38,8 +39,7 @@ const PRESET_DEFAULTS: PresetDefaults = {
   iconTilt: true,
 }
 
-// 颜色来自 ~/Downloads/表情包 下 PNG 的高饱和像素采样。优先保留单色，
-// 只有跨明显色系（如绿→橙、青→紫）时才写入多个停靠点。
+/** 贴纸预设种子表 */
 export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
   字节范: [
     { text: '始终创业', colors: ['#8d0', '#6da'], icon: 'mdi:numeric-1-box' },
@@ -80,6 +80,7 @@ export const STICKER_PRESETS: Record<string, StickerPresetSeed[]> = {
 
 export type StickerPresetGroup = keyof typeof STICKER_PRESETS
 
+/** 贴纸预设分组级默认参数 */
 const PRESET_GROUP_DEFAULTS: Record<string, Partial<PresetDefaults>> = {
   字节范: {
     flavor: 'bs',
@@ -87,8 +88,7 @@ const PRESET_GROUP_DEFAULTS: Record<string, Partial<PresetDefaults>> = {
   },
 }
 
-// 渐变角度默认由「是否有图标」决定（有图标 90° 横向、无图标 180° 纵向）；
-// 预设仅在个别需要时用显式 gradientAngle 覆盖。
+/** 按分组归一化后的贴纸预设表 */
 export const STICKER_PRESET_GROUPS = Object.fromEntries(Object.entries(
   STICKER_PRESETS,
 ).map(([group, presets]) => {
@@ -106,6 +106,7 @@ export const STICKER_PRESET_GROUPS = Object.fromEntries(Object.entries(
   return [group, normalizedPresets]
 })) as Record<StickerPresetGroup, StickerPreset[]>
 
+/** 扁平化后的贴纸预设列表 */
 export const STICKER_PRESET_LIST: StickerPreset[] = Object.values(
   STICKER_PRESET_GROUPS,
 ).flat()

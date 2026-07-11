@@ -16,7 +16,9 @@ import { saveToolSearch, searchRecordKey, toolUrl } from '../../shared/utils/too
 
 export type CopiedTarget = 'image' | 'link'
 
+/** 简易模式 URL 参数名 */
 const SIMPLE_MODE_PARAM = 'm'
+/** 简易模式 URL 参数值 */
 const SIMPLE_MODE_VALUE = 'simple'
 
 function buildAvatarUrl(controls: AvatarControls, simpleMode = false): string {

@@ -20,6 +20,7 @@ interface AvatarModeStylePickerProps {
   onStyleChange: (value: AvatarControls['style']) => void
 }
 
+/** 头像渲染模式选项 */
 const MODE_OPTIONS: {
   id: AvatarMode
   label: string

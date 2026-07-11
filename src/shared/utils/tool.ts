@@ -1,3 +1,4 @@
+/** 工具路由与本地缓存键映射 */
 const TOOL = {
   sticker: {
     path: '/',

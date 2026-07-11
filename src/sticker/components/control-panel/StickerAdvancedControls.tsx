@@ -5,6 +5,7 @@ import { HdrControls } from '../../../shared/components/HdrControls'
 import { SliderField } from '../../../shared/components/SliderField'
 import {
   DEFAULT_STICKER_CONTROLS,
+  STICKER_DEFAULT_OUTLINE_WIDTH,
   type StickerControls,
   type StickerEnvelopeControls,
   type StickerPaddingControls,
@@ -114,7 +115,7 @@ export function StickerAdvancedControls({
         min={0}
         max={48}
         value={controls.envelope.outlineStrokeWidth}
-        defaultValue={DEFAULT_STICKER_CONTROLS.envelope.outlineStrokeWidth}
+        defaultValue={STICKER_DEFAULT_OUTLINE_WIDTH[controls.flavor]}
         onValueChange={(value) => updateEnvelope('outlineStrokeWidth', value)}
       />
 

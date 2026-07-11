@@ -21,15 +21,15 @@ export interface GlyphPlacement {
   baselineY: number
   advanceWidth: number
   bounds: Bounds
-  /** Emoji 字形直立绘制；文字字形继承排版倾角。 */
+  /** Emoji 字形直立绘制；文字字形继承排版倾角 */
   skew: boolean
 }
 
 // 字形整形变换。所有变换以字形的基线锚点为中心，且仅作用于文字字形。
 export interface GlyphTransform {
-  /** 缩放 [水平, 垂直]。1 = 原生尺寸，>1 = 放大。优设标题黑需要一点垂直拉伸。 */
+  /** 缩放 [水平, 垂直]，1 = 原生尺寸，>1 = 放大，优设标题黑需要一点垂直拉伸 */
   scale: [number, number]
-  /** 逆时针旋转角度（度）。正值 = 逆时针（后仰），负值 = 顺时针。 */
+  /** 逆时针旋转角度（度），正值 = 逆时针（后仰），负值 = 顺时针 */
   rotationDeg: number
   /**
    * 斜切角度 [水平, 垂直]（度）。
@@ -40,6 +40,7 @@ export interface GlyphTransform {
   skewDeg: [number, number]
 }
 
+/** 不改变字形几何形态的默认变换 */
 export const IDENTITY_GLYPH_TRANSFORM: GlyphTransform = {
   scale: [1, 1],
   rotationDeg: 0,
@@ -52,9 +53,9 @@ export interface StickerLayout {
   letterSpacing: number
   fontSize: number
   flavor: StickerFlavor
-  /** 整段是否以中文为主，决定 snh 下西文数字是否随特色字体排版。 */
+  /** 整段是否以中文为主，决定 snh 下西文数字是否随特色字体排版 */
   chineseDominant: boolean
-  /** 绘制时应用于文字字形的每字体整形参数。 */
+  /** 绘制时应用于文字字形的每字体整形参数 */
   glyphTransform: GlyphTransform
 }
 

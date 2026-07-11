@@ -6,6 +6,7 @@ import {
 
 export type AvatarSearch = Record<string, string>
 
+/** 头像 URL query 支持的短键集合 */
 const AVATAR_SEARCH_KEYS = new Set(['t', 'st', 'md', 's', 'r', 'ga', 'fz', 'fw', 'lh', 'fx'])
 
 export function controlsToSearch(controls: AvatarControls): AvatarSearch {

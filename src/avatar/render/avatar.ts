@@ -27,10 +27,15 @@ interface AvatarPaint {
   solid: string
 }
 
+/** 自动拆行最多尝试的行数 */
 const MAX_AUTO_LINES = 5
+/** 彩环模式外圈描边相对头像尺寸的比例 */
 const OUTLINE_STROKE_RATIO = 0.028
+/** 文字布局半径相对头像内容半径的比例 */
 const TEXT_RADIUS_RATIO = 0.85
+/** 单行文字墨迹半高相对行高的比例 */
 const LINE_INK_HALF_HEIGHT_RATIO = 0.34
+/** 头像渲染使用的系统字体族 */
 const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif'
 
 export async function renderAvatar(

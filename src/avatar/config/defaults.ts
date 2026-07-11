@@ -2,7 +2,6 @@ import {
   DEFAULT_FLASH_STOPS,
   FLASH_STOPS_MAX,
   FLASH_STOPS_MIN,
-  FLASH_STOPS_STEP,
 } from '../../shared/config/hdr'
 import {
   AVATAR_STYLES,
@@ -25,19 +24,26 @@ export interface AvatarControls {
 
 export type AvatarMode = 'fill' | 'outline'
 
+/** 头像输出尺寸最小值 */
 export const AVATAR_SIZE_MIN = 128
+/** 头像输出尺寸最大值 */
 export const AVATAR_SIZE_MAX = 1024
-export const AVATAR_FLASH_STOPS_MIN = FLASH_STOPS_MIN
-export const AVATAR_FLASH_STOPS_MAX = FLASH_STOPS_MAX
-export const AVATAR_FLASH_STOPS_STEP = FLASH_STOPS_STEP
+/** 头像字号缩放最小值 */
 export const AVATAR_FONT_SCALE_MIN = 0.85
+/** 头像字号缩放最大值 */
 export const AVATAR_FONT_SCALE_MAX = 1.25
+/** 头像字重最小值 */
 export const AVATAR_FONT_WEIGHT_MIN = 100
+/** 头像字重最大值 */
 export const AVATAR_FONT_WEIGHT_MAX = 800
+/** 头像字重滑杆步进 */
 export const AVATAR_FONT_WEIGHT_STEP = 50
+/** 头像行高最小值 */
 export const AVATAR_LINE_HEIGHT_MIN = 1
+/** 头像行高最大值 */
 export const AVATAR_LINE_HEIGHT_MAX = 1.4
 
+/** 头像工具默认控件状态 */
 export const DEFAULT_AVATAR_CONTROLS: AvatarControls = {
   text: '离职',
   style: 'aurora',
@@ -111,8 +117,8 @@ export function normalizeAvatarControls(value: unknown): AvatarControls {
         : DEFAULT_AVATAR_CONTROLS.flash,
     flashStops: clampNumber(
       input.flashStops,
-      AVATAR_FLASH_STOPS_MIN,
-      AVATAR_FLASH_STOPS_MAX,
+      FLASH_STOPS_MIN,
+      FLASH_STOPS_MAX,
       DEFAULT_AVATAR_CONTROLS.flashStops,
     ),
   }

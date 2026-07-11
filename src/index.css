@@ -18,7 +18,7 @@
   --input: oklch(0.922 0 0);
   --ring: #5c95e5;
   --radius: 0.625rem;
-  --font-sans: InterVariable, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-sans: InterVariable, sans-serif;
 
   --text-strong: var(--foreground);
   --text-muted: var(--muted-foreground);
@@ -46,6 +46,12 @@
   font: 0.875rem/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
   color-scheme: light dark;
+}
+
+@media screen and (max-resolution: 1.25dppx) {
+  :root {
+    --font-sans: system-ui, sans-serif;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

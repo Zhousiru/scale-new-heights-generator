@@ -42,6 +42,7 @@ interface PreviewActionsProps {
   onCopyLink: () => void
 }
 
+/** 当前页面是否运行在 iframe 中 */
 const IN_IFRAME = (() => {
   try {
     return window.self !== window.top

@@ -6,6 +6,7 @@ import {
 import { SimpleEditFooter } from './SimpleEditFooter'
 import { ToolFooter } from './ToolFooter'
 import { UsageHintCarousel } from './UsageHintCarousel'
+import { useIntranetAvailable } from '../hooks/useIntranetAvailable'
 import type { Tool } from '../utils/tool'
 
 export type CopiedTarget = 'image' | 'link'
@@ -49,6 +50,8 @@ export function ToolPreviewPanel({
   switchIcon,
   switchLabel,
 }: ToolPreviewPanelProps) {
+  const showIntranetContent = useIntranetAvailable()
+
   if (simpleMode) {
     return (
       <section className="panel panel-preview panel-preview-simple">
@@ -84,11 +87,14 @@ export function ToolPreviewPanel({
           onCopyLink={onCopyLink}
         />
       )}
-      {hasText && <UsageHintCarousel />}
+      {hasText && (
+        <UsageHintCarousel showIntranetHints={showIntranetContent} />
+      )}
       <ToolFooter
         tool={switchTool}
         icon={switchIcon}
         label={switchLabel}
+        showIntranetLink={showIntranetContent}
       />
     </section>
   )

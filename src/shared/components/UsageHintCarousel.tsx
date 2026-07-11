@@ -1,23 +1,33 @@
 import { useEffect, useState } from 'react'
 
-const USAGE_HINTS = [
-  '普通 PNG 适合日常发送；色彩增益（HDR）适合偶尔强调。',
-  '色彩增益需要支持 HDR 的屏幕和浏览器，别人不一定能看到同样亮度。',
-  '开了 HDR 会导出 JPG；需要透明底时用普通 PNG。',
-  '别把 HDR 高频发到群里，+1 EV 已经足够醒目。',
-  'HDR 的预览和导出都走同一套参数，看到刺眼就该关。',
-  '飞书压缩图片后可能改观感；重要图先发自己小窗确认。',
-  '头像模式固定正方形输出，适合群头像和应用头像。',
-  '彩环模式是白底图，浅色聊天背景里更稳。',
-  '彩底白字更醒目，群名很短时更适合。',
-  '文字旋转适合微调气质，角度太大会降低识别效率。',
-  '多行头像可以手动换行；三字以内不会强行拆字。',
-  '导出文件名会带上文本，下载后更容易找。',
-  '找我就行',
-  '永远为▒▒卖命！',
-  'omg我还点了merge',
+/** 公共环境下展示的使用提示 */
+const PUBLIC_USAGE_HINTS = [
+  'iframe 里复制/下载可能受限；失败时右键复制或新标签页导出。',
+  '复制链接会生成 m=simple 简易模式，适合嵌入预览。',
+  '开启 HDR 会导出 JPG；需要透明底时保持普通 PNG。',
+  '文本微微旋转一下设成群头像，可以让大家难受一下。',
+  '新标签页导出会沿用当前参数，不会丢配置。',
+]
+
+/** 内网可达后才展示的内部梗提示 */
+const INTRANET_USAGE_HINTS = [
   '▒▒没你确实不行',
+  '不明白在说啥，整篇文档',
+  '不要总发我表情包',
   '还能搞更大么？',
+  '很奇怪都是0',
+  '换个人负责这些功能',
+  '快干活去吧，算我求求你了',
+  '快干活去吧，算我求求你了',
+  '那我回家了',
+  '亲！你去吃饭了吗',
+  '我看变量名既有 驼峰 又有 下划线，是什么逻辑？',
+  '我说白了，那我说白了',
+  '永远为▒▒卖命！',
+  '找我就行',
+  '这个群上班时间一直拼命在闪',
+  '最近老出这些低水平错误',
+  'omg我还点了merge',
 ]
 
 interface HintState {
@@ -25,18 +35,38 @@ interface HintState {
   cursor: number
 }
 
-export function UsageHintCarousel() {
+interface UsageHintCarouselProps {
+  showIntranetHints?: boolean
+}
+
+export function UsageHintCarousel({
+  showIntranetHints = false,
+}: UsageHintCarouselProps) {
+  const hints = showIntranetHints
+    ? [...PUBLIC_USAGE_HINTS, ...INTRANET_USAGE_HINTS]
+    : PUBLIC_USAGE_HINTS
+  const hintsLength = hints.length
   const [state, setState] = useState<HintState>(() => ({
-    order: shuffledIndexes(),
+    order: shuffledIndexes(PUBLIC_USAGE_HINTS.length),
     cursor: 0,
   }))
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setState(nextHintState)
+      setState((current) => nextHintState(current, hintsLength))
     }, 20000)
     return () => window.clearInterval(timer)
-  }, [])
+  }, [hintsLength])
+
+  useEffect(() => {
+    setState((current) => {
+      if (current.order.length === hintsLength) return current
+      return {
+        order: shuffledIndexes(hintsLength, current.order[current.cursor]),
+        cursor: 0,
+      }
+    })
+  }, [hintsLength])
 
   const index = state.order[state.cursor] ?? 0
 
@@ -45,25 +75,25 @@ export function UsageHintCarousel() {
       className="usage-hint"
       type="button"
       title="点击切换提示"
-      onClick={() => setState(nextHintState)}
+      onClick={() => setState((current) => nextHintState(current, hintsLength))}
     >
-      {USAGE_HINTS[index]}
+      {hints[index]}
     </button>
   )
 }
 
-function nextHintState(state: HintState): HintState {
+function nextHintState(state: HintState, length: number): HintState {
   const nextCursor = state.cursor + 1
   if (nextCursor < state.order.length) return { ...state, cursor: nextCursor }
 
   return {
-    order: shuffledIndexes(state.order[state.cursor]),
+    order: shuffledIndexes(length, state.order[state.cursor]),
     cursor: 0,
   }
 }
 
-function shuffledIndexes(previousLast?: number): number[] {
-  const order = USAGE_HINTS.map((_, index) => index)
+function shuffledIndexes(length: number, previousLast?: number): number[] {
+  const order = Array.from({ length }, (_, index) => index)
 
   for (let index = order.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1))

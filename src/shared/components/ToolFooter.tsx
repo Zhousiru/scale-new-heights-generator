@@ -5,12 +5,14 @@ interface ToolFooterProps {
   tool: Tool
   icon: string
   label: string
+  showIntranetLink?: boolean
 }
 
 export function ToolFooter({
   tool,
   icon,
   label,
+  showIntranetLink = false,
 }: ToolFooterProps) {
   return (
     <div className="footer-links">
@@ -18,15 +20,17 @@ export function ToolFooter({
         <Icon icon={icon} />
         {label}
       </a>
-      <a
-        className="footer-link"
-        href="http://go/^"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon icon="tabler:book" />
-        内网文档
-      </a>
+      {showIntranetLink && (
+        <a
+          className="footer-link"
+          href="http://go/^"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon icon="tabler:book" />
+          内网文档
+        </a>
+      )}
       <a
         className="footer-link"
         href="https://github.com/zhousiru/scale-new-heights-generator"

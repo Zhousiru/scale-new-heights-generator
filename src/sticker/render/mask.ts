@@ -1,5 +1,6 @@
 import type { BinaryMask, OpaqueBounds } from './types'
 
+/** 距离变换中的无穷远哨兵值 */
 const DISTANCE_INF: number = 1e15
 
 // ---------------------------------------------------------------------------
