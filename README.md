@@ -71,10 +71,10 @@ pnpm dev        # 启动开发服务器
 
 ## Node 无头用法
 
-面向机器人服务端使用 `scale-new-heights-generator/node` 子入口。它不依赖 React、DOM、Web Worker 或 Chromium；默认会在真正渲染时动态加载可选依赖 `@napi-rs/canvas`。如果部署环境不想安装 native 依赖，可以通过 `new StickerGenerator(runtime)` 注入自己的 canvas runtime。
+面向机器人服务端使用 `@syru/byted-sticker-generator/node` 子入口。它不依赖 React、DOM、Web Worker 或 Chromium；默认会在真正渲染时动态加载可选依赖 `@napi-rs/canvas`。如果部署环境不想安装 native 依赖，可以通过 `new StickerGenerator(runtime)` 注入自己的 canvas runtime。
 
 ```ts
-import { renderStickerToBuffer } from 'scale-new-heights-generator/node'
+import { renderStickerToBuffer } from '@syru/byted-sticker-generator/node'
 
 const png = await renderStickerToBuffer({
   text: '高峰不常有',
@@ -109,7 +109,7 @@ const png = await renderStickerToBuffer('高峰不常有', { loadIcon: false })
 自定义 runtime 时，不需要安装 `@napi-rs/canvas`。runtime 至少需要提供 `createCanvas` 和 `toPngBytes`；如果要自动注册字体或加载前缀图标，再补 `registerFont` / `hasFont` / `loadImage`：
 
 ```ts
-import { StickerGenerator, type StickerGeneratorRuntime } from 'scale-new-heights-generator/node'
+import { StickerGenerator, type StickerGeneratorRuntime } from '@syru/byted-sticker-generator/node'
 
 const runtime: StickerGeneratorRuntime = {
   createCanvas: (width, height) => myCanvasFactory(width, height),
@@ -137,19 +137,19 @@ Inter Latin Bold 默认从 `inter-ui/web-latin/Inter-Bold-subset.woff2` 解析�
 根入口只导出配置、预设、URL 编解码和配色工具等纯逻辑：
 
 ```ts
-import { DEFAULT_STICKER_CONTROLS, STICKER_PRESET_LIST } from 'scale-new-heights-generator'
+import { DEFAULT_STICKER_CONTROLS, STICKER_PRESET_LIST } from '@syru/byted-sticker-generator'
 ```
 
 `core` 子入口导出不绑定 Node 的渲染核心，适合在 Web 或自定义 Canvas runtime 中复用：
 
 ```ts
-import { renderSticker, setCanvasRuntime } from 'scale-new-heights-generator/core'
+import { renderSticker, setCanvasRuntime } from '@syru/byted-sticker-generator/core'
 ```
 
 飞书头像使用独立入口，不依赖 sticker 的字形/描边管线：
 
 ```ts
-import { renderAvatarToBuffer } from 'scale-new-heights-generator/avatar/node'
+import { renderAvatarToBuffer } from '@syru/byted-sticker-generator/avatar/node'
 
 const png = await renderAvatarToBuffer({
   text: '前端群',
