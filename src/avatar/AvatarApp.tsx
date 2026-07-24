@@ -17,6 +17,7 @@ export function AvatarApp() {
       editorUrl={avatar.editorUrl}
       simpleMode={avatar.isSimpleMode}
       exportLabel={avatar.exportLabel}
+      canCopyImage={!avatar.controls.flash}
       onCopyImage={() => void avatar.handleCopyImage()}
       onExport={() => void avatar.handleExport()}
       onCopyLink={() => void avatar.handleCopyLink()}

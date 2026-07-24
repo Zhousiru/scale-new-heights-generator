@@ -4,6 +4,7 @@ import {
   colorInputValue,
   darken,
   deriveDepthColor,
+  deriveHighlightColor,
   lighten,
   randomGradientPair,
   randomVividColors,
@@ -35,10 +36,24 @@ describe('deriveDepthColor', () => {
   })
 })
 
+describe('deriveHighlightColor', () => {
+  it('keeps hue while producing a lighter companion', () => {
+    const base = '#4c9acc'
+    const highlight = deriveHighlightColor(base)
+    const a = colord(base).toHsl()
+    const b = colord(highlight).toHsl()
+
+    expect(Math.abs(a.h - b.h)).toBeLessThan(2)
+    expect(b.l).toBeGreaterThan(a.l)
+  })
+})
+
 describe('resolveGradientStops', () => {
   it('expands a single color into a [dark, light] pair', () => {
-    const [dark, light] = resolveGradientStops(['#4c9acc'])
-    expect(light).toBe('#4c9acc')
+    const base = '#4c9acc'
+    const [dark, light] = resolveGradientStops([base])
+    expect(colord(dark).toHsl().l).toBeLessThan(colord(base).toHsl().l)
+    expect(colord(light).toHsl().l).toBeGreaterThan(colord(base).toHsl().l)
     expect(colord(dark).toHsl().l).toBeLessThan(colord(light).toHsl().l)
   })
 

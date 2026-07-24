@@ -5,13 +5,19 @@ export function deriveDepthColor(base: string): string {
   return colord(base).darken(0.12).desaturate(0.05).toHex()
 }
 
+// 单色渐变的浅端：向白轻量提亮，并补一点点饱和度抵消向白插值必然的褪色，
+// 让单色系渐变更通透、不闷。与 deriveDepthColor 对称。
+export function deriveHighlightColor(base: string): string {
+  return colord(base).lighten(0.06).saturate(0.03).toHex()
+}
+
 // 把用户配置的 1~3 个颜色规整为渐变停靠点：
-//   • 单色：补出同色系深色，形成 [深, 浅]；配合默认 180° 呈现「上深下浅」。
+//   • 单色：补出同色系「深 + 亮」，形成 [深, 浅]；配合默认 180° 呈现「上深下浅」。
 //   • 双色/三色：原样返回。
 export function resolveGradientStops(colors: string[]): string[] {
   if (colors.length <= 1) {
     const base = colors[0] ?? '#76baf4'
-    return [deriveDepthColor(base), base]
+    return [deriveDepthColor(base), deriveHighlightColor(base)]
   }
   return colors
 }

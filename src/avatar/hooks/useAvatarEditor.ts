@@ -11,6 +11,7 @@ import {
   renderAvatarPreview,
 } from '../worker/avatarWorker'
 import { generatedFileName } from '../../shared/utils/fileName'
+import { copyImageToClipboard } from '../../shared/utils/clipboard'
 import { useRenderedPreview } from '../../shared/hooks/useRenderedPreview'
 import { saveToolSearch, searchRecordKey, toolUrl } from '../../shared/utils/tool'
 
@@ -117,15 +118,15 @@ export function useAvatarEditor() {
     if (!hasText) return
     try {
       const result = await exportAvatarBlob(controls)
-      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-        throw new Error('clipboard-unavailable')
+      const copy = await copyImageToClipboard(result.blob, result.mime)
+      if (copy.ok) {
+        flashCopied('image')
+      } else {
+        setPreviewError(copy.message ?? '复制失败。')
       }
-      await navigator.clipboard.write([
-        new ClipboardItem({ [result.mime]: result.blob }),
-      ])
-      flashCopied('image')
-    } catch {
-      setPreviewError('无法直接复制（当前环境限制剪贴板）。请在预览图上右键选择「复制图片」。')
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '复制失败。'
+      setPreviewError(message)
     }
   }
 

@@ -6,6 +6,7 @@ import {
   randomVividColors,
 } from '../utils/color'
 import { generatedFileName } from '../../shared/utils/fileName'
+import { copyImageToClipboard } from '../../shared/utils/clipboard'
 import { saveToolSearch, searchRecordKey, toolUrl } from '../../shared/utils/tool'
 import { useRenderedPreview } from '../../shared/hooks/useRenderedPreview'
 import {
@@ -227,16 +228,15 @@ export function useStickerEditor() {
     if (!hasText) return
     try {
       const result = await exportStickerBlob(controls)
-      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-        throw new Error('clipboard-unavailable')
+      const copy = await copyImageToClipboard(result.blob, result.mime)
+      if (copy.ok) {
+        flashCopied('image')
+      } else {
+        setPreviewError(copy.message ?? '复制失败。')
       }
-      await navigator.clipboard.write([
-        new ClipboardItem({ [result.mime]: result.blob }),
-      ])
-      flashCopied('image')
-    } catch {
-      // iframe / 权限策略 / 无焦点等场景下剪贴板写入会被拒绝，引导用户手动复制。
-      setPreviewError('无法直接复制（当前环境限制剪贴板）。请在预览图上右键选择「复制图片」。')
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '复制失败。'
+      setPreviewError(message)
     }
   }
 

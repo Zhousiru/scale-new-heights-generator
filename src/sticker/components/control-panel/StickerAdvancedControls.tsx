@@ -3,6 +3,7 @@ import { Button } from '../../../shared/ui/button'
 import { FieldLabel } from '../../../shared/components/FieldLabel'
 import { HdrControls } from '../../../shared/components/HdrControls'
 import { SliderField } from '../../../shared/components/SliderField'
+import { hasChangedFields } from '../../../shared/utils/controlsDiff'
 import {
   DEFAULT_STICKER_CONTROLS,
   STICKER_DEFAULT_OUTLINE_WIDTH,
@@ -10,6 +11,20 @@ import {
   type StickerEnvelopeControls,
   type StickerPaddingControls,
 } from '../../config/defaults'
+
+// 高级面板关注的字段：任一偏离默认值就默认展开。新增字段只加一行访问器。
+const ADVANCED_FIELDS: ReadonlyArray<(c: StickerControls) => unknown> = [
+  (c) => c.iconTilt,
+  (c) => c.tilt,
+  (c) => c.peak,
+  (c) => c.flash,
+  (c) => c.flashStops,
+  (c) => c.antialiasScale,
+  (c) => c.envelope.outlineStrokeWidth,
+  (c) => c.padding.x,
+  (c) => c.padding.y,
+  (c) => c.lineHeight,
+]
 
 interface StickerAdvancedControlsProps {
   controls: StickerControls
@@ -33,8 +48,19 @@ export function StickerAdvancedControls({
   updateEnvelope,
   updatePadding,
 }: StickerAdvancedControlsProps) {
+  const defaultOutlineWidth = STICKER_DEFAULT_OUTLINE_WIDTH[controls.flavor]
+  // 描边默认值随 flavor 变化，构造对应基准后再统一比较。
+  const baseline: StickerControls = {
+    ...DEFAULT_STICKER_CONTROLS,
+    envelope: {
+      ...DEFAULT_STICKER_CONTROLS.envelope,
+      outlineStrokeWidth: defaultOutlineWidth,
+    },
+  }
+  const hasAdvancedParams = hasChangedFields(controls, baseline, ADVANCED_FIELDS)
+
   return (
-    <AdvancedSection>
+    <AdvancedSection defaultOpen={hasAdvancedParams}>
       <div className="field">
         <FieldLabel
           isDirty={

@@ -9,14 +9,16 @@ import {
 interface AdvancedSectionProps {
   children: ReactNode
   title?: ReactNode
+  defaultOpen?: boolean
 }
 
 export function AdvancedSection({
   children,
   title = '高级设置',
+  defaultOpen = false,
 }: AdvancedSectionProps) {
   return (
-    <Collapsible className="advanced">
+    <Collapsible className="advanced" defaultOpen={defaultOpen}>
       <CollapsibleTrigger className="advanced-summary">
         <Icon
           className="advanced-summary-icon"

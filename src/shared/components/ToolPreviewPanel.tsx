@@ -22,6 +22,7 @@ interface ToolPreviewPanelProps {
   editorUrl: string
   simpleMode?: boolean
   exportLabel: string
+  canCopyImage?: boolean
   onCopyImage: () => void
   onExport: () => void
   onCopyLink: () => void
@@ -42,6 +43,7 @@ export function ToolPreviewPanel({
   editorUrl,
   simpleMode = false,
   exportLabel,
+  canCopyImage = true,
   onCopyImage,
   onExport,
   onCopyLink,
@@ -82,6 +84,7 @@ export function ToolPreviewPanel({
           isExporting={isExporting}
           shareUrl={shareUrl}
           exportLabel={exportLabel}
+          canCopyImage={canCopyImage}
           onCopyImage={onCopyImage}
           onExport={onExport}
           onCopyLink={onCopyLink}

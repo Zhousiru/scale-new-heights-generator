@@ -17,6 +17,7 @@ function App() {
       editorUrl={sticker.editorUrl}
       simpleMode={sticker.isSimpleMode}
       exportLabel={sticker.exportLabel}
+      canCopyImage={!sticker.controls.flash}
       onCopyImage={() => void sticker.handleCopyImage()}
       onExport={() => void sticker.handleExport()}
       onCopyLink={() => void sticker.handleCopyLink()}

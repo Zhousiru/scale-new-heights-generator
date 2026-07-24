@@ -37,6 +37,8 @@ interface PreviewActionsProps {
   isExporting: boolean
   shareUrl: string
   exportLabel?: string
+  /** HDR(JPEG) 模式下 JPG 不易复制，隐藏复制图片按钮 */
+  canCopyImage?: boolean
   onCopyImage: () => void
   onExport: () => void
   onCopyLink: () => void
@@ -132,20 +134,23 @@ export function PreviewActions({
   isExporting,
   shareUrl,
   exportLabel = '导出 PNG',
+  canCopyImage = true,
   onCopyImage,
   onExport,
   onCopyLink,
 }: PreviewActionsProps) {
   return (
     <div className="actions">
-      <Button
-        variant="secondary"
-        type="button"
-        onClick={onCopyImage}
-      >
-        <Icon icon="tabler:copy" />
-        {copied === 'image' ? '已复制' : '复制图片'}
-      </Button>
+      {canCopyImage && (
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={onCopyImage}
+        >
+          <Icon icon="tabler:copy" />
+          {copied === 'image' ? '已复制' : '复制图片'}
+        </Button>
+      )}
       {IN_IFRAME ? (
         <Button variant="secondary" asChild>
           <a

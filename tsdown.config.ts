@@ -14,7 +14,7 @@ export default defineConfig({
   dts: true,
   platform: 'node',
   target: 'es2023',
-  tsconfig: 'tsconfig.node.json',
+  tsconfig: 'tsconfig.package.json',
   deps: {
     neverBundle: ['@napi-rs/canvas'],
   },
