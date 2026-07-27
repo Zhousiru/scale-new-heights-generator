@@ -26,11 +26,28 @@ import {
   normalizeTextRenderInput,
   type TextRenderInput,
 } from '../shared/render/input'
+import {
+  ULTRA_HDR_JPEG_EXTENSION,
+  ULTRA_HDR_JPEG_MIME,
+  encodeUltraHdrJpegBytes,
+} from '../shared/hdr/ultraHdrJpeg'
 import type { RenderIcon } from './render/types'
 import { iconIdToUrl } from './utils/iconLoader'
 
 export type StickerRenderInput = TextRenderInput<StickerControls>
 export type { StickerFlavor }
+
+/** PNG 输出的 MIME 类型 */
+const PNG_MIME = 'image/png'
+/** PNG 输出的下载扩展名 */
+const PNG_EXTENSION = 'png'
+
+/** 无头渲染的图片产物：字节流 + 内容类型 + 扩展名 */
+export interface StickerImageResult {
+  buffer: Buffer
+  mime: string
+  extension: string
+}
 
 export interface StickerGeneratorRuntime extends CanvasRuntime {
   /** 注册字体，自定义 runtime 如果已自行注册字体，可以不实现 */
@@ -266,6 +283,17 @@ export async function renderStickerToBuffer(
   return await (await defaultGenerator()).renderBuffer(input, options)
 }
 
+/**
+ * 渲染并按 `controls.flash` 选择输出格式：开启时导出 Ultra HDR JPEG gain map，
+ * 否则导出 PNG。返回字节流及对应的 MIME 与扩展名。
+ */
+export async function renderStickerToImage(
+  input: StickerRenderInput,
+  options: RenderStickerNodeOptions = {},
+): Promise<StickerImageResult> {
+  return await (await defaultGenerator()).renderImage(input, options)
+}
+
 export class StickerGenerator {
   readonly runtime: StickerGeneratorRuntime
 
@@ -278,10 +306,10 @@ export class StickerGenerator {
     registerStickerFontsWithRuntime(this.runtime, fontFiles)
   }
 
-  async renderPngBytes(
+  private async renderCanvas(
     input: StickerRenderInput,
-    options: RenderStickerNodeOptions = {},
-  ): Promise<Uint8Array> {
+    options: RenderStickerNodeOptions,
+  ): Promise<{ canvas: OffscreenCanvas; controls: StickerControls }> {
     this.registerFonts(options.fontFiles)
 
     const controls = normalizeRenderInput(input)
@@ -300,7 +328,15 @@ export class StickerGenerator {
         : numberOption(options.antialiasScale),
       maxOutputEdge: options.maxOutputEdge,
     })
-    return await runtimeCanvasToPngBytes(result.canvas)
+    return { canvas: result.canvas, controls }
+  }
+
+  async renderPngBytes(
+    input: StickerRenderInput,
+    options: RenderStickerNodeOptions = {},
+  ): Promise<Uint8Array> {
+    const { canvas } = await this.renderCanvas(input, options)
+    return await runtimeCanvasToPngBytes(canvas)
   }
 
   async renderBuffer(
@@ -309,6 +345,27 @@ export class StickerGenerator {
   ): Promise<Buffer> {
     const bytes = await this.renderPngBytes(input, options)
     return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  }
+
+  async renderImage(
+    input: StickerRenderInput,
+    options: RenderStickerNodeOptions = {},
+  ): Promise<StickerImageResult> {
+    const { canvas, controls } = await this.renderCanvas(input, options)
+    if (controls.flash) {
+      const bytes = encodeUltraHdrJpegBytes(canvas, { flashStops: controls.flashStops })
+      return {
+        buffer: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+        mime: ULTRA_HDR_JPEG_MIME,
+        extension: ULTRA_HDR_JPEG_EXTENSION,
+      }
+    }
+    const bytes = await runtimeCanvasToPngBytes(canvas)
+    return {
+      buffer: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+      mime: PNG_MIME,
+      extension: PNG_EXTENSION,
+    }
   }
 }
 

@@ -137,7 +137,7 @@ export async function ensureStickerFontLoaded(
 
     promise = loadFontFace({
       family: descriptor.family,
-      source: `url(${import.meta.env.BASE_URL}${descriptor.file})`,
+      source: `url(${import.meta.env?.BASE_URL ?? ''}${descriptor.file})`,
       style: 'normal',
       weight: descriptor.weight,
       verify: {

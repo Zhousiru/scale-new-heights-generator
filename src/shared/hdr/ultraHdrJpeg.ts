@@ -21,10 +21,10 @@ const HDR_BOOST_ALPHA_START = 0.65
 /** 完全施加 HDR 增益的 alpha 阈值 */
 const HDR_BOOST_ALPHA_END = 0.95
 
-export function encodeUltraHdrJpegFromCanvas(
+export function encodeUltraHdrJpegBytes(
   canvas: OffscreenCanvas,
   options: UltraHdrJpegOptions = {},
-): Blob {
+): Uint8Array<ArrayBuffer> {
   const flashStops = resolveFlashStops(options.flashStops)
   const headroom = 2 ** flashStops
   const image = canvasToHdrImage(canvas, { headroom })
@@ -33,11 +33,17 @@ export function encodeUltraHdrJpegFromCanvas(
     minContentBoost: 1,
     toneMapping: 'neutral',
   })
-  const bytes = writeJpegGainMap(encoding, {
+  return new Uint8Array(writeJpegGainMap(encoding, {
     quality: options.quality ?? 94,
     format: 'ultrahdr',
-  })
-  return new Blob([new Uint8Array(bytes)], { type: ULTRA_HDR_JPEG_MIME })
+  }))
+}
+
+export function encodeUltraHdrJpegFromCanvas(
+  canvas: OffscreenCanvas,
+  options: UltraHdrJpegOptions = {},
+): Blob {
+  return new Blob([encodeUltraHdrJpegBytes(canvas, options)], { type: ULTRA_HDR_JPEG_MIME })
 }
 
 function canvasToHdrImage(
